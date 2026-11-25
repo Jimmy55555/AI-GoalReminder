@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="長期目標提醒器.Client/長期目標提醒器.Client.csproj" />
+  <Project Path="長期目標提醒器/長期目標提醒器.csproj" />
+</Solution>
