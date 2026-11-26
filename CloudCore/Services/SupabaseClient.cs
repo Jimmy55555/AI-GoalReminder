@@ -22,6 +22,13 @@ public sealed class SupabaseClient
         Converters = { new JsonStringEnumConverter() }
     };
 
+    // PostgREST 的欄位名称是 snake_case，不能被 camelCase policy 改掉。
+    private static readonly JsonSerializerOptions RestJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        PropertyNamingPolicy = null,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
     private readonly HttpClient httpClient;
     private readonly string apiKey;
     private readonly Func<string?>? accessTokenProvider;
@@ -48,7 +55,7 @@ public sealed class SupabaseClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, path)
         {
-            Content = JsonContent.Create(body, options: JsonOptions)
+            Content = JsonContent.Create(body, options: RestJsonOptions)
         };
         request.Headers.TryAddWithoutValidation(
             "Prefer",
@@ -61,7 +68,7 @@ public sealed class SupabaseClient
     {
         using var request = new HttpRequestMessage(HttpMethod.Patch, path)
         {
-            Content = JsonContent.Create(body, options: JsonOptions)
+            Content = JsonContent.Create(body, options: RestJsonOptions)
         };
         request.Headers.TryAddWithoutValidation("Prefer", "return=representation");
         AddHeaders(request);
@@ -119,7 +126,7 @@ public sealed class SupabaseClient
             return default;
         }
 
-        return await response.Content.ReadFromJsonAsync<T>(JsonOptions, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<T>(RestJsonOptions, cancellationToken);
     }
 
     private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)

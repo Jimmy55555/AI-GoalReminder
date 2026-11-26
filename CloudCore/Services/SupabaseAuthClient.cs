@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace 長期目標提醒器.Services;
 
@@ -91,15 +92,25 @@ public sealed class SupabaseAuthClient
 
     private sealed class AuthResponse
     {
+        [JsonPropertyName("access_token")]
         public string? AccessToken { get; set; }
+
+        [JsonPropertyName("refresh_token")]
         public string? RefreshToken { get; set; }
+
+        [JsonPropertyName("expires_in")]
         public int ExpiresIn { get; set; }
+
+        [JsonPropertyName("user")]
         public AuthUser? User { get; set; }
     }
 
     private sealed class AuthUser
     {
+        [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("email")]
         public string? Email { get; set; }
     }
 }
