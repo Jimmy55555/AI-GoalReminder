@@ -11,6 +11,15 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: CORS });
 }
 
+function getPublishableKey() {
+  const raw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
+  if (raw) {
+    const keys = JSON.parse(raw);
+    return String(keys.default ?? Object.values(keys)[0] ?? "");
+  }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return json({}, 204);
   if (req.method !== "POST") return json({ error: "只支援 POST。" }, 405);
@@ -22,7 +31,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      getPublishableKey(),
       { global: { headers: { Authorization: `Bearer ${token}` } } },
     );
     const { data: authData, error: authError } = await supabase.auth.getUser(token);

@@ -13,7 +13,7 @@ public sealed class SupabaseException(string message, HttpStatusCode statusCode 
 }
 
 /// <summary>
-/// 共用 Supabase REST 呼叫。WASM 用 anon key + 使用者 access token；Mailer 用 service role key。
+/// 共用 Supabase REST 呼叫。WASM 用 publishable key + 使用者 access token；Mailer 用 secret key。
 /// </summary>
 public sealed class SupabaseClient
 {
@@ -99,7 +99,10 @@ public sealed class SupabaseClient
     {
         request.Headers.TryAddWithoutValidation("apikey", apiKey);
         var token = accessTokenProvider?.Invoke();
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", string.IsNullOrWhiteSpace(token) ? apiKey : token);
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
     }
 
     private async Task<T?> SupabaseSendAsync<T>(HttpRequestMessage request, CancellationToken cancellationToken)

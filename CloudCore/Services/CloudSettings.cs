@@ -27,7 +27,6 @@ public sealed class AiSettings
 public sealed class SupabaseSettings
 {
     public string Url { get; init; } = "";
-    public string AnonKey { get; init; } = "";
-    public string ServiceRoleKey { get; init; } = "";
-    public string Schema { get; init; } = "goal_reminder";
+    public string PublishableKey { get; init; } = "";
+    public string SecretKey { get; init; } = "";
 }

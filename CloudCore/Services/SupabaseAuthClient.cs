@@ -12,12 +12,12 @@ public sealed record SupabaseSession(
 public sealed class SupabaseAuthClient
 {
     private readonly HttpClient httpClient;
-    private readonly string anonKey;
+    private readonly string apiKey;
 
-    public SupabaseAuthClient(HttpClient httpClient, string anonKey)
+    public SupabaseAuthClient(HttpClient httpClient, string apiKey)
     {
         this.httpClient = httpClient;
-        this.anonKey = anonKey;
+        this.apiKey = apiKey;
     }
 
     public async Task<SupabaseSession> SignInAsync(string email, string password, CancellationToken cancellationToken = default)
@@ -31,7 +31,7 @@ public sealed class SupabaseAuthClient
         {
             Content = JsonContent.Create(new { email = email.Trim(), password })
         };
-        request.Headers.TryAddWithoutValidation("apikey", anonKey);
+        request.Headers.TryAddWithoutValidation("apikey", apiKey);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -70,7 +70,7 @@ public sealed class SupabaseAuthClient
         {
             Content = JsonContent.Create(new { refresh_token = refreshToken })
         };
-        request.Headers.TryAddWithoutValidation("apikey", anonKey);
+        request.Headers.TryAddWithoutValidation("apikey", apiKey);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)

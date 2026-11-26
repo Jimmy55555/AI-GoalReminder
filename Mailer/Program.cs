@@ -13,10 +13,10 @@ var mode = args.FirstOrDefault() ?? "digest";
 try
 {
     var url = Require("SUPABASE_URL").TrimEnd('/');
-    var serviceKey = Require("SUPABASE_SERVICE_ROLE_KEY");
+    var secretKey = Require("SUPABASE_SECRET_KEY", Environment.GetEnvironmentVariable("SUPABASE_SERVICE_ROLE_KEY"));
 
     using var httpClient = new HttpClient { BaseAddress = new Uri(url) };
-    var supabase = new SupabaseClient(httpClient, serviceKey);
+    var supabase = new SupabaseClient(httpClient, secretKey);
 
     if (mode.Equals("import", StringComparison.OrdinalIgnoreCase))
     {

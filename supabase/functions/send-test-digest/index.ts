@@ -12,6 +12,15 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: CORS });
 }
 
+function getPublishableKey() {
+  const raw = Deno.env.get("SUPABASE_PUBLISHABLE_KEYS");
+  if (raw) {
+    const keys = JSON.parse(raw);
+    return String(keys.default ?? Object.values(keys)[0] ?? "");
+  }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+}
+
 function escapeHtml(value: unknown) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -60,7 +69,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      getPublishableKey(),
       { global: { headers: { Authorization: `Bearer ${token}` } } },
     );
     const { data: authData, error: authError } = await supabase.auth.getUser(token);

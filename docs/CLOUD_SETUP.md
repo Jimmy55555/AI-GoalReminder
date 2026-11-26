@@ -19,10 +19,10 @@
 
 編輯 `GitHubPagesApp/wwwroot/appsettings.json`：
 
-- `Supabase:Url`：`https://<project>.supabase.co`
-- `Supabase:AnonKey`：Supabase → Project Settings → API → `anon public`
+- `Supabase:Url`：Supabase 專案左上 **Connect** 顯示的 Project URL
+- `Supabase:PublishableKey`：同一個 Connect 對話框的 publishable key（`sb_publishable_...`）
 
-anon key 本來就是公開給瀏覽器用的；安全性由 RLS 政策負責。**不要把 service_role key 放進這個檔案。**
+如果沒看到，到 **Settings → API Keys → Publishable and secret API keys**，按 **Create new API keys** 建立。publishable key 可公開；安全性靠 RLS。**不要把 `sb_secret_...` 放進這個檔案。**
 
 ## 3. 一次性匯入本機資料
 
@@ -30,7 +30,7 @@ anon key 本來就是公開給瀏覽器用的；安全性由 RLS 政策負責。
 
 ```powershell
 $env:SUPABASE_URL = "https://<project>.supabase.co"
-$env:SUPABASE_SERVICE_ROLE_KEY = "<service_role_key>"
+$env:SUPABASE_SECRET_KEY = "<secret_key>"
 $env:SUPABASE_USER_ID = "<步驟 1 的使用者 UUID>"
 dotnet run --project Mailer/Mailer.csproj -c Release -- import "長期目標提醒器/App_Data"
 ```
@@ -66,7 +66,9 @@ Repo → Settings → Secrets and variables → Actions，新增：
 | 名稱 | 值 |
 |---|---|
 | `SUPABASE_URL` | `https://<project>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key（只放這裡） |
+| `SUPABASE_SECRET_KEY` | `sb_secret_...`（只放這裡） |
+
+若還沒建立新 key，可暫時改用舊的 `SUPABASE_SERVICE_ROLE_KEY`，程式會自動讀取。
 | `SMTP_USER` | Gmail 地址 |
 | `SMTP_PASSWORD` | Gmail 應用程式密碼 |
 

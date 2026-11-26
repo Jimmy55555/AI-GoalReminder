@@ -22,7 +22,7 @@ builder.Services.AddScoped(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>().GetSupabaseConfig();
     var httpClient = new HttpClient { BaseAddress = new Uri(config.Url) };
-    return new SupabaseAuthClient(httpClient, config.AnonKey);
+    return new SupabaseAuthClient(httpClient, config.PublishableKey);
 });
 
 builder.Services.AddScoped(sp =>
@@ -30,7 +30,7 @@ builder.Services.AddScoped(sp =>
     var config = sp.GetRequiredService<IConfiguration>().GetSupabaseConfig();
     var sessions = sp.GetRequiredService<SessionStore>();
     var httpClient = new HttpClient { BaseAddress = new Uri(config.Url) };
-    return new SupabaseClient(httpClient, config.AnonKey, () => sessions.AccessToken);
+    return new SupabaseClient(httpClient, config.PublishableKey, () => sessions.AccessToken);
 });
 
 builder.Services.AddScoped<AuthService>();
