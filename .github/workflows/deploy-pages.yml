@@ -36,6 +36,9 @@ jobs:
         run: |
           sed -i 's|<base href="/" />|<base href="/${{ github.event.repository.name }}/" />|' release/wwwroot/index.html
 
+      - name: Add SPA fallback
+        run: cp release/wwwroot/index.html release/wwwroot/404.html
+
       - name: Disable Jekyll
         run: touch release/wwwroot/.nojekyll
 

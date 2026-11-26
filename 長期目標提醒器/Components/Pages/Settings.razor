@@ -119,6 +119,11 @@
                 @(saving ? "儲存中…" : "儲存設定")
             </button>
 
+            @if (IsDirty)
+            {
+                <span class="text-xs font-medium text-rose-600 dark:text-rose-300">尚未儲存設定</span>
+            }
+
             <button type="button"
                     class="rounded-xl border-2 border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-60 sm:py-2"
                     disabled="@sending"
@@ -134,7 +139,7 @@
     </section>
 
     <p class="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        雲端版由 GitHub Actions 每 30 分鐘檢查一次，依照這裡的啟用、時間、頻率與收件者寄送；時間會落在最近的半小時（:00 或 :30）。
+        雲端版由 Supabase pg_cron 每分鐘檢查一次，依照這裡的設定寄送；時間會落在最近的半小時（:00 或 :30），過了就補寄，當天只寄一次。
     </p>
 </div>
 
@@ -164,10 +169,20 @@
     [Inject] private IOptions<AiSettings> AiOptions { get; set; } = default!;
 
     private EmailSchedule model = new();
+    private EmailSchedule saved = new();
     private string? message;
     private bool messageIsError;
     private bool saving;
     private bool sending;
+
+    private bool IsDirty =>
+        model.Enabled != saved.Enabled ||
+        model.SendTime != saved.SendTime ||
+        model.Frequency != saved.Frequency ||
+        model.WeeklyDay != saved.WeeklyDay ||
+        model.MonthlyDay != saved.MonthlyDay ||
+        model.Recipient != saved.Recipient ||
+        model.AiEnabled != saved.AiEnabled;
 
     private string NextSendText
     {
@@ -186,6 +201,7 @@
     protected override void OnInitialized()
     {
         model = Copy(ScheduleStore.Current);
+        saved = Copy(model);
     }
 
     private void SelectFrequency(EmailFrequency frequency) => model.Frequency = frequency;
@@ -197,6 +213,7 @@
         {
             ScheduleStore.Save(model);
             model = Copy(ScheduleStore.Current);
+            saved = Copy(model);
             message = "設定已儲存，排程已重新計算。";
             messageIsError = false;
         }
