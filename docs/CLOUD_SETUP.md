@@ -40,24 +40,28 @@ dotnet run --project Mailer/Mailer.csproj -c Release -- import "長期目標提�
 
 ## 4. Supabase Edge Functions
 
-部署三個函式：
+部署四個函式：
 
 ```powershell
 supabase functions deploy generate-skills
 supabase functions deploy goal-advice
 supabase functions deploy send-test-digest
+supabase functions deploy daily-digest
 ```
+
+`daily-digest` 的 `verify_jwt` 要設為 `false`，由 `CRON_SECRET` 驗證 pg_cron 呼叫。
 
 在 Supabase Dashboard → Edge Functions → Secrets 設定：
 
-- `GEMINI_API_KEY`：Gemini API 金鑰
-- `GEMINI_MODEL`：`gemini-4-hydrogen`（可由 GitHub Actions Variables 覆蓋）
 - `SMTP_USER`：Gmail 地址
 - `SMTP_PASSWORD`：Gmail 應用程式密碼
-- `SMTP_HOST`：`smtp.gmail.com`
-- `SMTP_PORT`：`587`
+- `SMTP_HOST`：`smtp.gmail.com`（預設值）
+- `SMTP_PORT`：`587`（預設值）
+- `CRON_SECRET`：自訂隨機字串，給 pg_cron 呼叫時使用
+- `GEMINI_API_KEY`：Gemini API 金鑰（選用，AI 建議用）
+- `GEMINI_MODEL`：`gemini-4-hydrogen`（選用）
 
-> 若 Edge Function 不允許 npm specifier，`send-test-digest` 會失敗；每日寄信仍由 GitHub Actions + .NET SMTP 執行，不受影響。
+> 測試信與正式摘要信都在 Edge Function 寄出；兩邊共用同一組 SMTP Secrets。
 
 ## 5. GitHub Secrets
 
@@ -69,21 +73,41 @@ Repo → Settings → Secrets and variables → Actions，新增：
 | `SUPABASE_SECRET_KEY` | `sb_secret_...`（只放這裡） |
 
 若還沒建立新 key，可暫時改用舊的 `SUPABASE_SERVICE_ROLE_KEY`，程式會自動讀取。
-| `SMTP_USER` | Gmail 地址 |
-| `SMTP_PASSWORD` | Gmail 應用程式密碼 |
-
-Variables 可選：`GEMINI_MODEL`（預設 `gemini-4-hydrogen`）。
+`SMTP_USER` / `SMTP_PASSWORD` / `GEMINI_API_KEY` 只保留給手動执行的 Mailer；正式寄信已改用 Supabase Secrets。
 
 ## 6. 部署與寄信
 
 - push 到 `main` 會自動部署 Pages。
-- `daily-digest.yml` 每 30 分鐘執行一次，依照設定頁的啟用、寄送時間、頻率、星期／日期與收件者寄信；也可按 **Run workflow** 手動寄一次。
-- 寄送時間會落在最近的半小時（`:00` 或 `:30`），避免 Actions 分鐘數耗費過高。
-- `email_send_log` 以 `(owner_id, sent_on)` 保證同一天不會重複寄。
+- 正式寄信由 Supabase `pg_cron` 每分鐘呼叫 `daily-digest` Edge Function；`daily-digest.yml` 只保留手動觸發。
+- `pg_cron` 使用 UTC；函式內部會轉成台北時區，依設定頁的啟用、寄送時間、頻率、星期／日期與收件者寄信。
+- 寄送時間會落在最近的半小時（`:00` 或 `:30`）；過了時間的任一分鐘都會補寄，`email_send_log` 以 `(owner_id, sent_on)` 保證同一天只寄一次。
+- 建立 cron job（在 SQL Editor 執行，`CRON_SECRET` 改成你設的值）：
+
+```sql
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'goal-reminder-daily-digest',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := 'https://<project>.supabase.co/functions/v1/daily-digest',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'x-cron-secret', '<CRON_SECRET>'
+    ),
+    body := '{}'::jsonb,
+    timeout_milliseconds := 30000
+  ) as request_id;
+  $$
+);
+```
 
 ## 7. 已知差異
 
-- 本機版與雲端版都用同一份 Supabase 資料；寄信由 GitHub Actions 統一處理。
+- 本機版與雲端版都用同一份 Supabase 資料；寄信由 Supabase pg_cron 統一處理。
+- Free 方案專案若閒置超過一週會暫停，暫停期間 cron 不會執行；恢復後會補寄當天還沒寄的摘要信。
 - 主题、側欄、Razor 元件與本機版共用同一份程式碼；深色不閃白由 `wwwroot/index.html` 的 pre-paint script 處理。
 - 首次登入會自動建立 3 個種子目標（只有新帳號、資料表為空時）。
 

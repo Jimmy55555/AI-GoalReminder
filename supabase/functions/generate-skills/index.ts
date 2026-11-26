@@ -40,7 +40,7 @@ function safeText(value: unknown, max = 120) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return json({}, 204);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ error: "只支援 POST。" }, 405);
 
   try {

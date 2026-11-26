@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "npm:smtp@1.8.3";
+import nodemailer from "npm:nodemailer@6";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +59,7 @@ function buildBody(goals: any[], today: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return json({}, 204);
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ error: "只支援 POST。" }, 405);
 
   try {
@@ -103,17 +103,15 @@ Deno.serve(async (req) => {
       day: "2-digit",
     }).format(new Date());
 
-    const client = new SMTPClient({
-      connection: {
-        host: Deno.env.get("SMTP_HOST") ?? "smtp.gmail.com",
-        port: Number(Deno.env.get("SMTP_PORT") ?? 587),
-        tls: true,
-        auth: `${smtpUser}:${smtpPassword}`,
-      },
+    const transporter = nodemailer.createTransport({
+      host: Deno.env.get("SMTP_HOST") ?? "smtp.gmail.com",
+      port: Number(Deno.env.get("SMTP_PORT") ?? 587),
+      secure: false,
+      auth: { user: smtpUser, pass: smtpPassword },
     });
 
     try {
-      await client.sendAsync({
+      await transporter.sendMail({
         text: "測試摘要信",
         from: `長期目標提醒器 <${smtpUser}>`,
         to: recipient,
@@ -121,7 +119,7 @@ Deno.serve(async (req) => {
         html: buildBody(goalRows ?? [], today),
       });
     } finally {
-      client.close();
+      transporter.close();
     }
 
     return json({ ok: true });

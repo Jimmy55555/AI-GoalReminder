@@ -1,9 +1,8 @@
 name: Daily Goal Digest
 
 on:
-  schedule:
-    # 每 30 分鐘檢查一次；實際寄送時間由 Supabase 設定決定（台北時區）
-    - cron: '0,30 * * * *'
+  # 正式寄信已改由 Supabase pg_cron 每分鐘觸發 daily-digest Edge Function。
+  # 這裡保留手動觸發以便除錯。
   workflow_dispatch:
 
 jobs:

@@ -68,8 +68,10 @@ public static class DigestSchedule
             return false;
         }
 
+        // GitHub Actions 可能延遲幾分鐘才觸發，所以過了設定時間就視為該寄。
+        // 每天只寄一次由 goal_reminder_email_send_log 保證。
         var sendTime = CheckTime(ParseSendTime(schedule.SendTime));
-        return localNow.Hour == sendTime.Hours && localNow.Minute == sendTime.Minutes;
+        return localNow.TimeOfDay >= sendTime;
     }
 
     public static string Describe(EmailSchedule schedule) => schedule.Frequency switch
