@@ -90,6 +90,20 @@
             <span class="relative mt-0.5 h-7 w-12 shrink-0 rounded-full bg-slate-300 dark:bg-slate-600 transition-colors peer-checked:bg-indigo-600 dark:peer-checked:bg-indigo-500 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-white dark:peer-focus-visible:ring-offset-slate-900 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" aria-hidden="true"></span>
         </label>
 
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button"
+                    class="min-h-10 rounded-xl border-2 border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0"
+                    disabled="@testingAi"
+                    @onclick="TestAiAsync">
+                @(testingAi ? "測試中…" : "測試 AI 可用性")
+            </button>
+
+            @if (!string.IsNullOrEmpty(aiTestMessage))
+            {
+                <span class="text-xs @(aiTestOk ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300")" role="status">@aiTestMessage</span>
+            }
+        </div>
+
         <div class="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/50 px-3 py-2 text-xs backdrop-blur">
             <span class="font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">Next send</span>
             <span class="font-medium text-slate-800 dark:text-white">@NextSendText</span>
@@ -101,13 +115,6 @@
         {
             <div class="mt-3 rounded-xl border border-amber-300/70 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-400/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200" role="alert">
                 收件者尚未設定，儲存後也不會寄出。請先填寫收件者並確認雲端寄件帳號已設定。
-            </div>
-        }
-
-        @if (model.AiEnabled && string.IsNullOrWhiteSpace(AiOptions.Value.ApiKey))
-        {
-            <div class="mt-3 rounded-xl border border-amber-300/70 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-400/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200" role="alert">
-                AI 行動建議已開啟，但雲端尚未設定 Gemini API 金鑰；信件仍會寄出並附上說明。
             </div>
         }
 
@@ -166,7 +173,7 @@
     [Inject] private GoalStore GoalStore { get; set; } = default!;
     [Inject] private EmailService EmailService { get; set; } = default!;
     [Inject] private IOptions<EmailSettings> EmailOptions { get; set; } = default!;
-    [Inject] private IOptions<AiSettings> AiOptions { get; set; } = default!;
+    [Inject] private IGoalAdviceClient AiClient { get; set; } = default!;
 
     private EmailSchedule model = new();
     private EmailSchedule saved = new();
@@ -174,6 +181,9 @@
     private bool messageIsError;
     private bool saving;
     private bool sending;
+    private bool testingAi;
+    private string? aiTestMessage;
+    private bool aiTestOk;
 
     private bool IsDirty =>
         model.Enabled != saved.Enabled ||
@@ -205,6 +215,29 @@
     }
 
     private void SelectFrequency(EmailFrequency frequency) => model.Frequency = frequency;
+
+    private async Task TestAiAsync()
+    {
+        testingAi = true;
+        aiTestMessage = null;
+        try
+        {
+            var result = await AiClient.TestAsync();
+            aiTestOk = result.Ok;
+            aiTestMessage = result.Ok
+                ? $"AI 正常（{result.Model}）：{result.Message}"
+                : $"AI 不可用：{result.Message}";
+        }
+        catch (Exception ex)
+        {
+            aiTestOk = false;
+            aiTestMessage = $"AI 不可用：{ex.Message}";
+        }
+        finally
+        {
+            testingAi = false;
+        }
+    }
 
     private async Task SaveAsync()
     {

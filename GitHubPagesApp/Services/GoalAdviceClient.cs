@@ -71,4 +71,59 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
             return GoalAdviceResult.Failed("AI 服務暫時無法使用。");
         }
     }
+
+    public async Task<AiTestResult> TestAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var response = await supabase.PostFunctionAsync(
+                "test-ai",
+                new { },
+                cancellationToken);
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            string? error = null;
+            string model = "";
+            string reply = "";
+            var ok = false;
+
+            using (var document = JsonDocument.Parse(json))
+            {
+                var root = document.RootElement;
+                if (root.TryGetProperty("ok", out var okProperty))
+                {
+                    ok = okProperty.ValueKind == JsonValueKind.True;
+                }
+                if (root.TryGetProperty("error", out var errorProperty))
+                {
+                    error = errorProperty.GetString();
+                }
+                if (root.TryGetProperty("model", out var modelProperty))
+                {
+                    model = modelProperty.GetString() ?? "";
+                }
+                if (root.TryGetProperty("reply", out var replyProperty))
+                {
+                    reply = replyProperty.GetString() ?? "";
+                }
+            }
+
+            if (!response.IsSuccessStatusCode || !ok || !string.IsNullOrWhiteSpace(error))
+            {
+                return AiTestResult.Failed(
+                    error ?? (!ok ? "AI 測試功能尚未部署到 Supabase。" : $"AI 服務回傳 {(int)response.StatusCode}。"),
+                    model);
+            }
+
+            return AiTestResult.Success(model, string.IsNullOrWhiteSpace(reply) ? "有回應。" : reply);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return AiTestResult.Failed($"無法連線到 AI 服務：{ex.Message}");
+        }
+    }
 }

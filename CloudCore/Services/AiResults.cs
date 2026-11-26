@@ -24,6 +24,14 @@ public interface IGoalAdviceClient
     Task<GoalAdviceResult> GetAdviceAsync(
         IReadOnlyList<Goal> goals,
         CancellationToken cancellationToken = default);
+
+    Task<AiTestResult> TestAsync(CancellationToken cancellationToken = default);
+}
+
+public sealed record AiTestResult(bool Ok, string Model, string Message)
+{
+    public static AiTestResult Success(string model, string message) => new(true, model, message);
+    public static AiTestResult Failed(string message, string model = "") => new(false, model, message);
 }
 
 public sealed record GoalAdviceResult(
