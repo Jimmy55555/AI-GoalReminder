@@ -1,0 +1,228 @@
+@page "/settings"
+@rendermode InteractiveServer
+@using Microsoft.Extensions.Options
+
+<PageTitle>通知設定 · 長期目標提醒器</PageTitle>
+
+<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+    <div class="mb-5">
+        <span class="font-mono text-[10px] uppercase tracking-widest text-indigo-600">Settings</span>
+        <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">通知設定</h1>
+        <p class="mt-2 text-sm leading-relaxed text-slate-600">選擇目標摘要信要多久寄一次、幾點寄、寄給誰。</p>
+    </div>
+
+    <section class="rounded-2xl border-2 border-white/60 bg-white/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] backdrop-blur-xl sm:p-6">
+        <label class="flex cursor-pointer items-start justify-between gap-4">
+            <span class="min-w-0">
+                <span class="block text-sm font-medium text-slate-900">啟用排程寄信</span>
+                <span class="mt-0.5 block text-xs leading-relaxed text-slate-500">關閉後不會自動寄出，但仍可以用下方的測試按鈕手動寄一封。</span>
+            </span>
+            <input type="checkbox" class="peer sr-only" @bind="model.Enabled" />
+            <span class="relative mt-0.5 h-7 w-12 shrink-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-indigo-600 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-400 peer-focus-visible:ring-offset-2 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-5" aria-hidden="true"></span>
+        </label>
+
+        <div class="my-4 h-px bg-slate-300/60" aria-hidden="true"></div>
+
+        <div>
+            <span class="block text-sm font-medium text-slate-900">頻率</span>
+            <div class="mt-2 grid grid-cols-3 gap-2">
+                @foreach (var option in FrequencyOptions)
+                {
+                    <button type="button"
+                            class="rounded-xl border-2 px-3 py-3 text-sm transition-all sm:py-2 @(model.Frequency == option.Value ? "border-indigo-400/70 bg-white/80 font-medium text-indigo-700 shadow-sm" : "border-white/60 bg-white/40 text-slate-600 hover:bg-white/60")"
+                            @onclick="() => SelectFrequency(option.Value)">
+                        @option.Label
+                    </button>
+                }
+            </div>
+
+            @if (model.Frequency == EmailFrequency.Weekly)
+            {
+                <div class="mt-3 flex flex-wrap gap-1.5">
+                    @foreach (var day in WeekDays)
+                    {
+                        <button type="button"
+                                class="h-11 w-11 rounded-lg border-2 text-xs transition-all sm:h-8 sm:w-8 @(model.WeeklyDay == day.Value ? "border-indigo-400/70 bg-white/80 font-medium text-indigo-700 shadow-sm" : "border-white/60 bg-white/40 text-slate-600 hover:bg-white/60")"
+                                @onclick="() => model.WeeklyDay = day.Value">
+                            @day.Label
+                        </button>
+                    }
+                </div>
+            }
+
+            @if (model.Frequency == EmailFrequency.Monthly)
+            {
+                <div class="mt-3 flex items-center gap-2">
+                    <span class="text-xs text-slate-500">每月</span>
+                    <input type="number" min="1" max="28" @bind="model.MonthlyDay"
+                           class="w-20 rounded-lg border-2 border-white/70 bg-white/70 px-2 py-1.5 text-center text-sm tabular-nums text-slate-900 outline-none transition-colors focus:border-indigo-400 focus:bg-white" />
+                    <span class="text-xs text-slate-500">號（1–28）</span>
+                </div>
+            }
+        </div>
+
+        <div class="my-4 h-px bg-slate-300/60" aria-hidden="true"></div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block">
+                <span class="block text-sm font-medium text-slate-900">寄送時間</span>
+                <span class="mt-0.5 block text-xs text-slate-500">台北時間（UTC+8）</span>
+                <input type="time" value="@model.SendTime"
+                       @onchange="e => model.SendTime = e.Value?.ToString() ?? model.SendTime"
+                       class="mt-2 w-full rounded-lg border-2 border-white/70 bg-white/70 px-3 py-2 text-sm tabular-nums text-slate-900 outline-none transition-colors focus:border-indigo-400 focus:bg-white" />
+            </label>
+
+            <label class="block">
+                <span class="block text-sm font-medium text-slate-900">收件者</span>
+                <span class="mt-0.5 block text-xs text-slate-500">摘要信會寄到這個信箱</span>
+                <input type="email" @bind="model.Recipient" placeholder="you@example.com"
+                       class="mt-2 w-full rounded-lg border-2 border-white/70 bg-white/70 px-3 py-2 text-sm text-slate-900 outline-none transition-colors focus:border-indigo-400 focus:bg-white" />
+            </label>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/70 bg-white/50 px-3 py-2 text-xs backdrop-blur">
+            <span class="font-mono text-[10px] uppercase tracking-widest text-slate-500">Next send</span>
+            <span class="font-medium text-slate-800">@NextSendText</span>
+            <span class="text-slate-400">·</span>
+            <span class="text-slate-500">@DigestSchedule.Describe(model)</span>
+        </div>
+
+        @if (!EmailService.IsConfigured(model))
+        {
+            <div class="mt-3 rounded-xl border border-amber-300/70 bg-amber-100/60 px-3 py-2 text-xs text-amber-800" role="alert">
+                寄件帳號或收件者尚未設定，儲存後也不會寄出。請確認 user-secrets 已經設定完成。
+            </div>
+        }
+
+        <div class="mt-5 flex flex-wrap items-center gap-2">
+            <button type="button"
+                    class="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 sm:py-2"
+                    disabled="@saving"
+                    @onclick="SaveAsync">
+                @(saving ? "儲存中…" : "儲存設定")
+            </button>
+
+            <button type="button"
+                    class="rounded-xl border-2 border-white/70 bg-white/50 px-4 py-3 text-sm text-slate-700 backdrop-blur transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-60 sm:py-2"
+                    disabled="@sending"
+                    @onclick="SendTestAsync">
+                @(sending ? "寄送中…" : "立即寄送測試信")
+            </button>
+
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <span class="text-xs @(messageIsError ? "text-rose-600" : "text-emerald-700")">@message</span>
+            }
+        </div>
+    </section>
+
+    <p class="mt-3 text-xs leading-relaxed text-slate-500">
+        排程由程式內的背景服務執行，因此程式必須保持執行才會寄信；關閉程式期間錯過的信不會補寄。
+    </p>
+</div>
+
+@code {
+    private static readonly (EmailFrequency Value, string Label)[] FrequencyOptions =
+    [
+        (EmailFrequency.Daily, "每天"),
+        (EmailFrequency.Weekly, "每週"),
+        (EmailFrequency.Monthly, "每月")
+    ];
+
+    private static readonly (DayOfWeek Value, string Label)[] WeekDays =
+    [
+        (DayOfWeek.Monday, "一"),
+        (DayOfWeek.Tuesday, "二"),
+        (DayOfWeek.Wednesday, "三"),
+        (DayOfWeek.Thursday, "四"),
+        (DayOfWeek.Friday, "五"),
+        (DayOfWeek.Saturday, "六"),
+        (DayOfWeek.Sunday, "日")
+    ];
+
+    [Inject] private EmailScheduleStore ScheduleStore { get; set; } = default!;
+    [Inject] private EmailService EmailService { get; set; } = default!;
+    [Inject] private IOptions<EmailSettings> EmailOptions { get; set; } = default!;
+
+    private EmailSchedule model = new();
+    private string? message;
+    private bool messageIsError;
+    private bool saving;
+    private bool sending;
+
+    private string NextSendText
+    {
+        get
+        {
+            if (!model.Enabled)
+            {
+                return "排程已停用";
+            }
+
+            var timeZone = AppTime.Resolve(EmailOptions.Value.TimeZone);
+            return DigestSchedule.ComputeNext(model, timeZone).ToString("yyyy/MM/dd HH:mm");
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        model = Copy(ScheduleStore.Current);
+    }
+
+    private void SelectFrequency(EmailFrequency frequency) => model.Frequency = frequency;
+
+    private async Task SaveAsync()
+    {
+        saving = true; 
+        try
+        {
+            ScheduleStore.Save(model);
+            model = Copy(ScheduleStore.Current);
+            message = "設定已儲存，排程已重新計算。";
+            messageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"儲存失敗：{ex.Message}";
+            messageIsError = true;
+        }
+        finally
+        {
+            saving = false;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task SendTestAsync()
+    {
+        sending = true;
+        message = null;
+
+        try
+        {
+            await EmailService.SendGoalDigestAsync(GoalSeedData.Goals, Copy(model));
+            message = $"測試信已寄出到 {model.Recipient}。";
+            messageIsError = false;
+        }
+        catch (Exception ex)
+        {
+            message = $"寄送失敗：{ex.Message}";
+            messageIsError = true;
+        }
+        finally
+        {
+            sending = false;
+        }
+    }
+
+    private static EmailSchedule Copy(EmailSchedule source) => new()
+    {
+        Enabled = source.Enabled,
+        SendTime = source.SendTime,
+        Frequency = source.Frequency,
+        WeeklyDay = source.WeeklyDay,
+        MonthlyDay = source.MonthlyDay,
+        Recipient = source.Recipient
+    };
+}
