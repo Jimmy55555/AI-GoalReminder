@@ -77,12 +77,13 @@ Variables 可選：`GEMINI_MODEL`（預設 `gemini-4-hydrogen`）。
 ## 6. 部署與寄信
 
 - push 到 `main` 會自動部署 Pages。
-- 每日 00:00 UTC（台北 08:00）執行 `daily-digest.yml`；也可在 Actions 页面按 **Run workflow** 手動寄一次。
+- `daily-digest.yml` 每 30 分鐘執行一次，依照設定頁的啟用、寄送時間、頻率、星期／日期與收件者寄信；也可按 **Run workflow** 手動寄一次。
+- 寄送時間會落在最近的半小時（`:00` 或 `:30`），避免 Actions 分鐘數耗費過高。
 - `email_send_log` 以 `(owner_id, sent_on)` 保證同一天不會重複寄。
 
 ## 7. 已知差異
 
-- 雲端每日寄信固定在台北 08:00；設定頁的「寄送時間」只影響每週／每月的判定與本機版。
+- 本機版與雲端版都用同一份 Supabase 資料；寄信由 GitHub Actions 統一處理。
 - 主题、側欄、Razor 元件與本機版共用同一份程式碼；深色不閃白由 `wwwroot/index.html` 的 pre-paint script 處理。
 - 首次登入會自動建立 3 個種子目標（只有新帳號、資料表為空時）。
 

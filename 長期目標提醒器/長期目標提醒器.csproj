@@ -11,8 +11,39 @@
 
   <ItemGroup>
     <ProjectReference Include="..\長期目標提醒器.Client\長期目標提醒器.Client.csproj" />
+    <ProjectReference Include="..\CloudCore\CloudCore.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="11.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
+  </ItemGroup>
+
+  <!-- 本機版改用 GitHub Pages 版同一組雲端服務，不再讀 App_Data/goals.json。 -->
+  <ItemGroup>
+    <Compile Remove="Services\GoalStore.cs" />
+    <Compile Remove="Services\GoalProgressStore.cs" />
+    <Compile Remove="Services\EmailScheduleStore.cs" />
+    <Compile Remove="Services\GoalSkillGenerator.cs" />
+    <Compile Remove="Services\GoalAdviceClient.cs" />
+    <Compile Remove="Services\EmailSettings.cs" />
+    <Compile Remove="Services\AiSettings.cs" />
+    <Compile Remove="Services\DigestSchedule.cs" />
+    <Compile Remove="Services\AppTime.cs" />
+    <Compile Remove="Services\DailyGoalDigestWorker.cs" />
+    <Compile Remove="Models\Goal.cs" />
+    <Compile Remove="Models\Skill.cs" />
+    <Compile Remove="Models\GoalSeedData.cs" />
+    <Compile Remove="Models\EmailSchedule.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\GitHubPagesApp\Services\SupabaseConfig.cs" Link="Services\SupabaseConfig.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\SessionStore.cs" Link="Services\SessionStore.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\AuthService.cs" Link="Services\AuthService.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\GoalStore.cs" Link="Services\GoalStore.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\GoalProgressStore.cs" Link="Services\GoalProgressStore.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\EmailScheduleStore.cs" Link="Services\EmailScheduleStore.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\GoalSkillGenerator.cs" Link="Services\GoalSkillGenerator.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\GoalAdviceClient.cs" Link="Services\GoalAdviceClient.cs" />
+    <RazorComponent Include="..\GitHubPagesApp\Components\Pages\Login.razor" Link="Components\Pages\Login.razor" />
   </ItemGroup>
 
 </Project>

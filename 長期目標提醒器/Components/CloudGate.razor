@@ -1,0 +1,87 @@
+@namespace 長期目標提醒器.Components
+@using 長期目標提醒器.Components.Pages
+@inject AuthService Auth
+@inject GoalStore GoalStore
+@inject GoalProgressStore GoalProgressStore
+@inject EmailScheduleStore ScheduleStore
+
+@if (!initialized)
+{
+    <div class="min-h-screen bg-[linear-gradient(120deg,#eef2ff,#e0f2fe,#ecfeff,#ecfdf5)] dark:bg-[linear-gradient(120deg,#020617,#0f172a,#0c1a2b,#052e2b)]"></div>
+}
+else if (!Auth.IsAuthenticated)
+{
+    <Login OnSignedIn="OnSignedInAsync" />
+}
+else
+{
+    @if (loadError is not null)
+    {
+        <div class="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-rose-600 px-4 py-2 text-sm text-white shadow-lg" role="alert">
+            <span>雲端資料載入失敗：@loadError</span>
+            <button type="button" class="rounded bg-white/20 px-2 py-1 hover:bg-white/30" @onclick="RetryAsync">重試</button>
+        </div>
+    }
+    @ChildContent
+}
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool initialized;
+    private string? loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await Auth.InitializeAsync();
+            if (Auth.IsAuthenticated)
+            {
+                await RefreshAllAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+        finally
+        {
+            initialized = true;
+        }
+    }
+
+    private async Task OnSignedInAsync()
+    {
+        loadError = null;
+        try
+        {
+            await RefreshAllAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private async Task RetryAsync()
+    {
+        loadError = null;
+        try
+        {
+            await RefreshAllAsync();
+        }
+        catch (Exception ex)
+        {
+            loadError = ex.Message;
+        }
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await Task.WhenAll(
+            GoalStore.RefreshAsync(),
+            GoalProgressStore.RefreshAsync(),
+            ScheduleStore.RefreshAsync());
+    }
+}

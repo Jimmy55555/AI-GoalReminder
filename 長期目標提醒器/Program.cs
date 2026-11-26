@@ -3,6 +3,11 @@ using 長期目標提醒器.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 沿用 GitHub Pages 版的 Supabase 設定，本機不再另存一份資料。
+builder.Configuration.AddJsonFile(
+    Path.Combine(builder.Environment.ContentRootPath, "..", "GitHubPagesApp", "wwwroot", "appsettings.json"),
+    optional: true);
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
@@ -10,19 +15,28 @@ builder.Services.AddRazorComponents()
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
 builder.Services.Configure<AiSettings>(builder.Configuration.GetSection(AiSettings.SectionName));
-builder.Services.AddHttpClient<IGoalAdviceClient, GoalAdviceClient>(client =>
+
+var supabaseConfig = builder.Configuration.GetSupabaseConfig();
+builder.Services.AddSingleton(supabaseConfig);
+builder.Services.AddScoped<SessionStore>();
+builder.Services.AddScoped(sp =>
 {
-    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+    var httpClient = new HttpClient { BaseAddress = new Uri(supabaseConfig.Url) };
+    return new SupabaseAuthClient(httpClient, supabaseConfig.PublishableKey);
 });
-builder.Services.AddHttpClient<IGoalSkillGenerator, GoalSkillGenerator>(client =>
+builder.Services.AddScoped(sp =>
 {
-    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+    var sessions = sp.GetRequiredService<SessionStore>();
+    var httpClient = new HttpClient { BaseAddress = new Uri(supabaseConfig.Url) };
+    return new SupabaseClient(httpClient, supabaseConfig.PublishableKey, () => sessions.AccessToken);
 });
-builder.Services.AddSingleton<EmailScheduleStore>();
-builder.Services.AddSingleton<GoalStore>();
-builder.Services.AddSingleton<GoalProgressStore>();
-builder.Services.AddSingleton<EmailService>();
-builder.Services.AddHostedService<DailyGoalDigestWorker>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<GoalStore>();
+builder.Services.AddScoped<GoalProgressStore>();
+builder.Services.AddScoped<EmailScheduleStore>();
+builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<IGoalSkillGenerator, GoalSkillGenerator>();
+builder.Services.AddScoped<IGoalAdviceClient, GoalAdviceClient>();
 builder.Services.AddScoped<SidebarState>();
 builder.Services.AddScoped<IThemeService, BrowserThemeService>();
 

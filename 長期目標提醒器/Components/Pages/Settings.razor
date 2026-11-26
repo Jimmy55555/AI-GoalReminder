@@ -134,7 +134,7 @@
     </section>
 
     <p class="mt-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        雲端版由 GitHub Actions 每日排程寄信；本機版由程式內的背景服務執行，關閉程式期間錯過的信不會補寄。
+        雲端版由 GitHub Actions 每 30 分鐘檢查一次，依照這裡的啟用、時間、頻率與收件者寄送；時間會落在最近的半小時（:00 或 :30）。
     </p>
 </div>
 
@@ -158,6 +158,7 @@
     ];
 
     [Inject] private EmailScheduleStore ScheduleStore { get; set; } = default!;
+    [Inject] private GoalStore GoalStore { get; set; } = default!;
     [Inject] private EmailService EmailService { get; set; } = default!;
     [Inject] private IOptions<EmailSettings> EmailOptions { get; set; } = default!;
     [Inject] private IOptions<AiSettings> AiOptions { get; set; } = default!;
@@ -219,7 +220,7 @@
 
         try
         {
-            await EmailService.SendGoalDigestAsync(GoalSeedData.Goals, Copy(model));
+            await EmailService.SendGoalDigestAsync(GoalStore.Goals, Copy(model));
             message = $"測試信已寄出到 {model.Recipient}。";
             messageIsError = false;
         }
