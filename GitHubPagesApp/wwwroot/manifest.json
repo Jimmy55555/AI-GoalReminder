@@ -1,13 +1,13 @@
 {
-  "name": "長期目標提醒器",
-  "short_name": "目標提醒",
-  "description": "定期整理長期目標與技能進度的提醒器",
+  "name": "AI長期目標提醒器",
+  "short_name": "AI目標提醒",
+  "description": "定期整理長期目標與技能進度的 AI 提醒器",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#eef2f7",
+  "background_color": "#4f46e5",
   "theme_color": "#4f46e5",
   "lang": "zh-Hant",
   "icons": [
