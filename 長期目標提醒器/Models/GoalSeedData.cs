@@ -9,7 +9,6 @@ public static class GoalSeedData
             Id = Guid.Parse("1a111111-1111-1111-1111-111111111111"),
             Title = "成為全端工程師",
             Description = "打好前端與後端基礎，能獨立完成一個完整產品。",
-            Icon = "💻",
             TargetDate = new DateOnly(2027, 6, 30),
             Skills =
             [
@@ -24,7 +23,6 @@ public static class GoalSeedData
             Id = Guid.Parse("2b222222-2222-2222-2222-222222222222"),
             Title = "取得日文 N1",
             Description = "以每天固定接觸的方式，累積到能閱讀原文技術文件。",
-            Icon = "📚",
             TargetDate = new DateOnly(2027, 3, 31),
             Skills =
             [
@@ -39,7 +37,6 @@ public static class GoalSeedData
             Id = Guid.Parse("3c333333-3333-3333-3333-333333333333"),
             Title = "完成半程馬拉松",
             Description = "建立穩定跑量，能在 2 小時內完成 21 公里。",
-            Icon = "🏃",
             TargetDate = new DateOnly(2027, 9, 30),
             Skills =
             [

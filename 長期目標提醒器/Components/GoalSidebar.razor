@@ -3,61 +3,80 @@
 @if (State.MobileOpen)
 {
     <button type="button"
-            class="fixed inset-0 z-20 bg-slate-900/30 backdrop-blur-sm sm:hidden"
+            class="fixed inset-0 z-20 bg-slate-900/30 dark:bg-black/60 backdrop-blur-sm sm:hidden"
             aria-label="關閉選單"
             @onclick="State.CloseMobile"></button>
 }
 
-<aside class="fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 flex-col border-r-2 border-white/60 bg-white/70 p-3 shadow-2xl backdrop-blur-xl transition-transform duration-200 @(State.MobileOpen ? "translate-x-0" : "-translate-x-full") sm:static sm:z-auto sm:min-h-[calc(100vh-3.5rem)] sm:w-64 sm:translate-x-0 sm:shadow-none @(State.Collapsed ? "sm:w-16 sm:p-1.5" : "sm:p-3")">
+<aside class="fixed inset-y-0 left-0 z-30 flex w-64 shrink-0 flex-col border-r-2 border-white/60 dark:border-white/10 bg-white/70 dark:bg-slate-900/70 p-3 shadow-2xl backdrop-blur-xl transition-transform duration-200 @(State.MobileOpen ? "translate-x-0" : "-translate-x-full") sm:static sm:z-auto sm:min-h-[calc(100vh-3.5rem)] sm:w-64 sm:translate-x-0 sm:shadow-none @(State.Collapsed ? "sm:w-16 sm:p-1.5" : "sm:p-3")">
     <div class="mb-3 flex items-center gap-2 px-1 @(State.Collapsed && !State.MobileOpen ? "justify-center" : "justify-between")">
-        <span class="truncate font-mono text-[10px] uppercase tracking-widest text-slate-500 @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">目標 · Goals</span>
+        <span class="truncate font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">目標 · Goals</span>
         <button type="button"
-                class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/70 bg-white/50 text-sm text-slate-600 backdrop-blur transition-colors hover:bg-white/80 hover:text-slate-900 sm:h-7 sm:w-7 sm:text-xs"
+                class="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 text-sm text-slate-600 dark:text-slate-300 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 hover:text-slate-900 dark:hover:text-white sm:h-7 sm:w-7 sm:text-xs"
                 title="@(State.MobileOpen ? "關閉選單" : State.Collapsed ? "展開側邊欄" : "收合側邊欄")"
                 @onclick="ToggleSidebar">
             @(State.MobileOpen ? "×" : State.Collapsed ? "»" : "«")
         </button>
     </div>
 
-    <nav class="flex flex-col gap-1">
+    <button type="button"
+            class="mb-2 @(State.Collapsed && !State.MobileOpen ? "hidden" : "flex") min-h-11 min-w-0 w-full items-center gap-2.5 rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-2.5 py-2 text-left text-[13px] text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 hover:text-slate-900 dark:hover:text-white sm:min-h-0"
+            title="新增目標"
+            @onclick="() => OnAddGoal.InvokeAsync()">
+        <span class="shrink-0 text-base leading-none" aria-hidden="true">＋</span>
+        <span class="min-w-0 truncate @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">新增目標</span>
+    </button>
+
+    <nav class="@(State.Collapsed && !State.MobileOpen ? "hidden" : "flex") flex-col gap-1">
         @foreach (var goal in Goals)
         {
             <button type="button"
-                    class="group relative flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-all sm:min-h-0 @(State.Collapsed ? "sm:justify-center sm:gap-0 sm:px-0 sm:py-2.5" : "") @(goal.Id == SelectedGoalId ? "bg-white/80 font-medium text-indigo-700 shadow-sm ring-1 ring-indigo-200/70" : "text-slate-600 hover:bg-white/50 hover:text-slate-900")"
-                    title="@goal.Title"
+                    class="group relative flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-all sm:min-h-0 @(State.Collapsed ? "sm:justify-center sm:gap-0 sm:px-0 sm:py-2.5" : "") @(goal.Id == SelectedGoalId ? "font-medium text-indigo-700 dark:text-indigo-300" : "text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white")"
+                    title="@goal.Title · @(ProgressStore.IsInProgress(goal.Id) ? "進行中" : "未進行")"
                     @onclick="() => SelectGoal(goal)">
-                @if (goal.Id == SelectedGoalId)
-                {
-                    <span class="absolute bottom-1.5 left-0 top-1.5 w-0.5 rounded-full bg-indigo-600" aria-hidden="true"></span>
-                }
-                <span class="shrink-0 text-base leading-none">@goal.Icon</span>
                 <span class="min-w-0 truncate @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">@goal.Title</span>
+                @if (ProgressStore.IsInProgress(goal.Id))
+                {
+                    <span class="@(State.Collapsed && !State.MobileOpen ? "absolute right-1 top-1/2 -translate-y-1/2" : "ml-auto") shrink-0 text-[11px] font-bold leading-none text-red-600 dark:text-red-400 [font-variant-emoji:text]" aria-hidden="true">&#x25B6;&#xFE0E;</span>
+                }
             </button>
         }
     </nav>
 
-    <div class="mt-auto rounded-xl border border-white/60 bg-white/50 p-3 backdrop-blur @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">
-        <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-slate-500">
-            <span>追蹤中</span>
-            <span class="inline-flex items-center gap-1 text-emerald-600">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
-                正常
-            </span>
+    <div class="mt-auto">
+        <div class="rounded-xl border border-white/60 dark:border-white/10 bg-white/50 dark:bg-slate-800/50 p-3 backdrop-blur @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">
+            <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                <span>追蹤中</span>
+                <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-300">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
+                    正常
+                </span>
+            </div>
+            <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">@Goals.Count 個長期目標</div>
         </div>
-        <div class="mt-1 text-sm font-semibold text-slate-700">@Goals.Count 個長期目標</div>
+        <a href="settings"
+           class="mt-2 flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 no-underline transition-colors hover:bg-white/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white sm:min-h-0 @(State.Collapsed ? "sm:justify-center sm:gap-0 sm:px-0 sm:py-2.5" : "")"
+           title="設定"
+           @onclick="() => State.CloseMobile()">
+            <span class="shrink-0 text-base leading-none" aria-hidden="true">⚙</span>
+            <span class="min-w-0 truncate @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">設定</span>
+        </a>
     </div>
 </aside>
 
 @code {
     [Inject] private SidebarState State { get; set; } = default!;
+    [Inject] private GoalProgressStore ProgressStore { get; set; } = default!;
 
     [Parameter] public IReadOnlyList<Goal> Goals { get; set; } = [];
     [Parameter] public Guid SelectedGoalId { get; set; }
     [Parameter] public EventCallback<Goal> OnGoalSelected { get; set; }
+    [Parameter] public EventCallback OnAddGoal { get; set; }
 
     protected override void OnInitialized()
     {
         State.Changed += OnStateChanged;
+        ProgressStore.Changed += OnStateChanged;
     }
 
     private async void OnStateChanged()
@@ -92,5 +111,6 @@
     public void Dispose()
     {
         State.Changed -= OnStateChanged;
+        ProgressStore.Changed -= OnStateChanged;
     }
 }

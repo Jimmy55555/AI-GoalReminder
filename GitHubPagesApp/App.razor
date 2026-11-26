@@ -1,0 +1,46 @@
+@using 長期目標提醒器.Components.Pages
+@inject AuthService Auth
+@inject GoalStore GoalStore
+@inject GoalProgressStore GoalProgressStore
+@inject EmailScheduleStore ScheduleStore
+
+@if (!initialized)
+{
+    <div class="grid min-h-screen place-items-center text-sm text-slate-500 dark:text-slate-400">正在載入…</div>
+}
+else if (!Auth.IsAuthenticated)
+{
+    <Login OnSignedIn="OnSignedInAsync" />
+}
+else
+{
+    <Routes />
+}
+
+@code {
+    private bool initialized;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Auth.InitializeAsync();
+        if (Auth.IsAuthenticated)
+        {
+            await RefreshAllAsync();
+        }
+
+        initialized = true;
+    }
+
+    private async Task OnSignedInAsync()
+    {
+        await RefreshAllAsync();
+    }
+
+    private async Task RefreshAllAsync()
+    {
+        await Task.WhenAll(
+            GoalStore.RefreshAsync(),
+            GoalProgressStore.RefreshAsync(),
+            ScheduleStore.RefreshAsync());
+    }
+}

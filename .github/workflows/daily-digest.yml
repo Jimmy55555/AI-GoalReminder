@@ -1,0 +1,31 @@
+name: Daily Goal Digest
+
+on:
+  schedule:
+    # 00:00 UTC = 台北 08:00
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      EMAIL_TIME_ZONE: Taipei Standard Time
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: '587'
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-4-hydrogen' }}
+      GEMINI_TIMEOUT_SECONDS: '20'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '11.0.x'
+
+      - name: Send digest
+        run: dotnet run --project Mailer/Mailer.csproj -c Release

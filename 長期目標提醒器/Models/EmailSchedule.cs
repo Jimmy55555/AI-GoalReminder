@@ -8,6 +8,7 @@ public sealed class EmailSchedule
     public DayOfWeek WeeklyDay { get; set; } = DayOfWeek.Monday;
     public int MonthlyDay { get; set; } = 1;
     public string Recipient { get; set; } = "";
+    public bool AiEnabled { get; set; }
 }
 
 public enum EmailFrequency

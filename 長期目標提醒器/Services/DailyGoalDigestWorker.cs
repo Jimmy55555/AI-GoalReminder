@@ -6,6 +6,7 @@ namespace 長期目標提醒器.Services;
 public sealed class DailyGoalDigestWorker(
     EmailService emailService,
     EmailScheduleStore scheduleStore,
+    GoalStore goalStore,
     IOptions<EmailSettings> options,
     ILogger<DailyGoalDigestWorker> logger) : BackgroundService
 {
@@ -66,7 +67,7 @@ public sealed class DailyGoalDigestWorker(
 
                 try
                 {
-                    await emailService.SendGoalDigestAsync(GoalSeedData.Goals, schedule, stoppingToken);
+                    await emailService.SendGoalDigestAsync(goalStore.Goals, schedule, stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

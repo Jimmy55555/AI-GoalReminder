@@ -9,6 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     keyframes: {
@@ -35,13 +36,60 @@
             }
         };
     </script>
+    <script>
+        // 在頁面繪製前決定深/淺色，避免重新載入時先閃一下淺色。
+        (function () {
+            const key = 'theme';
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function stored() {
+                try { return localStorage.getItem(key); } catch { return null; }
+            }
+
+            function syncButton() {
+                const btn = document.getElementById('theme-toggle');
+                if (!btn) return;
+                const dark = document.documentElement.classList.contains('dark');
+                const label = dark ? '切換淺色模式' : '切換深色模式';
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+            }
+
+            function apply(dark) {
+                document.documentElement.classList.toggle('dark', dark);
+                syncButton();
+            }
+
+            apply(stored() === 'dark' || (stored() === null && media.matches));
+
+            window.appTheme = {
+                isDark: function () {
+                    return document.documentElement.classList.contains('dark');
+                },
+                toggle: function () {
+                    const dark = !document.documentElement.classList.contains('dark');
+                    apply(dark);
+                    try { localStorage.setItem(key, dark ? 'dark' : 'light'); } catch { }
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', syncButton);
+
+            const onSystemChange = function (e) {
+                if (stored() === null) apply(e.matches);
+            };
+            if (media.addEventListener) media.addEventListener('change', onSystemChange);
+            else if (media.addListener) media.addListener(onSystemChange);
+        })();
+    </script>
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["長期目標提醒器.styles.css"]" />
     <ImportMap />
     <HeadOutlet />
 </head>
 
-<body class="bg-indigo-50 text-slate-900">
+@* 關閉 Blazor 增強導覽，讓每次換頁都重新執行上面的主題 script，避免先畫淺色再補深色。 *@
+<body data-enhance-nav="false" class="bg-indigo-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]">
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>

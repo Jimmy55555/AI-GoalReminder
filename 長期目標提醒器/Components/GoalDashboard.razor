@@ -1,30 +1,44 @@
 <div class="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
     @if (Goal is null)
     {
-        <div class="m-4 rounded-xl border border-amber-200/70 bg-amber-100/60 p-4 font-mono text-xs text-amber-700 backdrop-blur" role="alert">
+        <div class="m-4 rounded-xl border border-amber-200/70 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-400/10 p-4 font-mono text-xs text-amber-700 dark:text-amber-300 backdrop-blur" role="alert">
             NO GOAL SELECTED // 請從左側選擇一個目標
         </div>
     }
     else
     {
-        <section class="relative mb-5 overflow-hidden rounded-3xl border-2 border-white/60 bg-white/45 p-5 shadow-[0_8px_32px_rgba(31,38,135,0.10)] backdrop-blur-xl sm:p-7">
-            <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-300/40 blur-3xl" aria-hidden="true"></div>
+        <section class="relative mb-5 overflow-hidden rounded-3xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-5 shadow-[0_8px_32px_rgba(31,38,135,0.10)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-7">
+            <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-300/40 dark:bg-indigo-400/20 blur-3xl" aria-hidden="true"></div>
 
             <div class="relative flex flex-col items-stretch gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                        <span class="font-mono text-[10px] uppercase tracking-widest text-indigo-600">Active Goal</span>
-                        <span class="h-px w-6 bg-indigo-300" aria-hidden="true"></span>
+                        <span class="font-mono text-[10px] uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Active Goal</span>
+                        <span class="h-px w-6 bg-indigo-300 dark:bg-indigo-400/40" aria-hidden="true"></span>
                     </div>
-                    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">@Goal.Icon @Goal.Title</h1>
-                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">@Goal.Description</p>
-                    <div class="mt-4 flex flex-wrap items-center gap-2">
-                        <span class="inline-flex items-center gap-1.5 rounded-xl border border-white/70 bg-white/60 px-2.5 py-1 text-xs text-slate-700 shadow-sm backdrop-blur">
-                            🎯 @Goal.TargetDate.ToString("yyyy.MM.dd")
-                        </span>
-                        <span class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/60 bg-indigo-50/70 px-2.5 py-1 font-mono text-xs text-indigo-700 backdrop-blur">
-                            @(Goal.DaysRemaining >= 0 ? $"剩餘 {Goal.DaysRemaining} 天" : $"已超過 {-Goal.DaysRemaining} 天")
-                        </span>
+                    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white sm:text-3xl">@Goal.Title</h1>
+                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">@Goal.Description</p>
+                    @if (Goal.TargetDate is { } headerDate)
+                    {
+                        <div class="mt-4 flex flex-wrap items-center gap-2">
+                            <span class="inline-flex items-center gap-1.5 rounded-xl border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-700/50 px-2.5 py-1 text-xs text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur">
+                                🎯 @headerDate.ToString("yyyy.MM.dd")
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/60 dark:border-indigo-400/30 bg-indigo-50/70 dark:bg-indigo-400/10 px-2.5 py-1 font-mono text-xs text-indigo-700 dark:text-indigo-300 backdrop-blur">
+                                @(Goal.DaysRemaining is { } remaining ? (remaining >= 0 ? $"剩餘 {remaining} 天" : $"已超過 {-remaining} 天") : "")
+                            </span>
+                        </div>
+                    }
+                    <div class="mt-3">
+                        <button type="button"
+                                @onclick="() => OnInProgressChanged.InvokeAsync(!IsInProgress)"
+                                aria-pressed="@(IsInProgress ? "true" : "false")"
+                                class="inline-flex min-h-[40px] w-[174px] shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-700/50 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 shadow-sm backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-600/60">
+                            <span class="relative h-5 w-9 shrink-0 rounded-full transition-colors @(IsInProgress ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-500")" aria-hidden="true">
+                                <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all @(IsInProgress ? "left-4" : "left-0.5")"></span>
+                            </span>
+                            <span class="w-[106px] text-left">@(IsInProgress ? "進行中 · 含 AI 建議" : "未進行 · 僅回報進度")</span>
+                        </button>
                     </div>
                 </div>
 
@@ -43,51 +57,52 @@
                     </svg>
                     <div class="absolute inset-0 grid place-items-center">
                         <div class="text-center">
-                            <span class="block text-2xl font-semibold tabular-nums text-slate-900">@Goal.ProgressPercent<span class="text-sm font-normal text-slate-400">%</span></span>
-                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-400">完成</span>
+                            <span class="block text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">@Goal.ProgressPercent<span class="text-sm font-normal text-slate-400 dark:text-slate-500">%</span></span>
+                            <span class="font-mono text-[9px] uppercase tracking-widest text-slate-400 dark:text-slate-500">完成</span>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <div class="mb-6 grid grid-cols-1 overflow-hidden rounded-2xl border-2 border-white/60 bg-white/45 shadow-[0_8px_32px_rgba(31,38,135,0.08)] backdrop-blur-md sm:grid-cols-3">
-            <div class="border-b-2 border-white/50 px-4 py-4 sm:border-b-0 sm:border-r-2 sm:px-5">
-                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+        <div class="mb-6 grid grid-cols-1 overflow-hidden rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md sm:grid-cols-3">
+            <div class="border-b-2 border-white/50 dark:border-white/10 px-4 py-4 sm:border-b-0 sm:border-r-2 sm:px-5">
+                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>已掌握
                 </span>
                 <div class="mt-1.5 flex items-baseline gap-1">
-                    <span class="text-2xl font-semibold tabular-nums text-slate-900">@Goal.MasteredCount</span>
-                    <span class="text-xs text-slate-500">項</span>
+                    <span class="text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">@Goal.MasteredCount</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">項</span>
                 </div>
             </div>
-            <div class="border-b-2 border-white/50 px-4 py-4 sm:border-b-0 sm:border-r-2 sm:px-5">
-                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+            <div class="border-b-2 border-white/50 dark:border-white/10 px-4 py-4 sm:border-b-0 sm:border-r-2 sm:px-5">
+                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     <span class="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true"></span>學習中
                 </span>
                 <div class="mt-1.5 flex items-baseline gap-1">
-                    <span class="text-2xl font-semibold tabular-nums text-slate-900">@Goal.LearningCount</span>
-                    <span class="text-xs text-slate-500">項</span>
+                    <span class="text-2xl font-semibold tabular-nums text-slate-900 dark:text-white">@Goal.LearningCount</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">項</span>
                 </div>
             </div>
             <div class="px-4 py-4 sm:px-5">
-                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
                     <span class="h-1.5 w-1.5 rounded-full bg-slate-400" aria-hidden="true"></span>未開始
                 </span>
                 <div class="mt-1.5 flex items-baseline gap-1">
-                    <span class="text-2xl font-semibold tabular-nums text-slate-500">@Goal.NotStartedCount</span>
-                    <span class="text-xs text-slate-500">項</span>
+                    <span class="text-2xl font-semibold tabular-nums text-slate-500 dark:text-slate-400">@Goal.NotStartedCount</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">項</span>
                 </div>
             </div>
         </div>
 
         <div class="mb-3 flex items-end justify-between">
             <div>
-                <h2 class="text-[15px] font-semibold tracking-tight text-slate-900">技能與里程碑</h2>
-                <p class="mt-0.5 text-xs text-slate-500">共 @Goal.Skills.Count 項技能</p>
+                <h2 class="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">技能與里程碑</h2>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">共 @Goal.Skills.Count 項技能</p>
             </div>
-            <button type="button" disabled
-                    class="cursor-not-allowed rounded-lg border border-white/70 bg-white/50 px-3 py-1.5 text-xs text-slate-400 backdrop-blur">
+            <button type="button"
+                    class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 hover:text-slate-900 dark:hover:text-white"
+                    @onclick="() => OnAddSkill.InvokeAsync()">
                 ＋ 新增技能
             </button>
         </div>
@@ -95,30 +110,90 @@
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             @foreach (var skill in Goal.Skills)
             {
-                <article class="group rounded-2xl border-2 border-white/60 bg-white/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white/80 hover:bg-white/65 hover:shadow-[0_12px_40px_rgba(79,70,229,0.15)]">
+                <article class="group rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white/80 dark:hover:border-white/20 hover:bg-white/65 dark:hover:bg-slate-700/60 hover:shadow-[0_12px_40px_rgba(79,70,229,0.15)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
                     <div class="mb-3 flex items-start justify-between gap-2">
-                        <h3 class="text-sm font-semibold text-slate-900">@skill.Name</h3>
-                        <span class="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] @SkillBadgeClass(skill.Status)">
-                            @SkillStatusText(skill.Status)
-                        </span>
+                        <h3 class="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-white">@skill.Name</h3>
+                        <div class="flex shrink-0 items-center gap-1">
+                            <span class="rounded-full px-2 py-0.5 font-mono text-[10px] @SkillBadgeClass(skill.Status)">
+                                @SkillStatusText(skill.Status)
+                            </span>
+                            <button type="button"
+                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/70 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-indigo-300 sm:h-6 sm:w-6"
+                                    title="編輯技能"
+                                    aria-label="編輯 @skill.Name"
+                                    @onclick="() => OnEditSkill.InvokeAsync(skill)">
+                                ✎
+                            </button>
+                            <button type="button"
+                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/70 dark:hover:bg-white/10 hover:text-rose-600 dark:hover:text-rose-300 sm:h-6 sm:w-6"
+                                    title="刪除技能"
+                                    aria-label="刪除 @skill.Name"
+                                    @onclick="() => OnDeleteSkill.InvokeAsync(skill.Id)">
+                                ✕
+                            </button>
+                        </div>
                     </div>
                     <div class="flex items-center gap-2.5">
-                        <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/70"
+                        <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-700/70"
                              role="progressbar"
                              aria-valuenow="@skill.Progress" aria-valuemin="0" aria-valuemax="100">
                             <div class="h-full rounded-full @SkillBarClass(skill.Status)" style="width: @skill.Progress%"></div>
                         </div>
-                        <span class="w-9 text-right font-mono text-[11px] tabular-nums text-slate-500">@skill.Progress%</span>
+                        <span class="w-9 text-right font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">@skill.Progress%</span>
                     </div>
-                    <p class="mt-2.5 text-xs leading-relaxed text-slate-600">@skill.Note</p>
+                    <p class="mt-2.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">@skill.Note</p>
                 </article>
             }
+        </div>
+
+        <div class="mt-5 flex flex-col gap-3 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+                @if (Goal.TargetDate is not null)
+                {
+                    <button type="button"
+                            class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 hover:text-slate-900 dark:hover:text-white"
+                            @onclick="() => OnEditDate.InvokeAsync()">
+                        修改日期
+                    </button>
+                    <button type="button"
+                            class="inline-flex min-h-10 items-center rounded-lg px-2 py-1.5 text-xs text-slate-500 dark:text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-300"
+                            @onclick="() => OnClearDate.InvokeAsync()">
+                        移除日期
+                    </button>
+                }
+                else
+                {
+                    <button type="button"
+                            class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70 hover:text-slate-900 dark:hover:text-white"
+                            @onclick="() => OnEditDate.InvokeAsync()">
+                        ＋ 設定日期
+                    </button>
+                }
+            </div>
+            <button type="button"
+                    class="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border border-rose-200/60 dark:border-rose-400/30 bg-rose-50/50 dark:bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-300 backdrop-blur transition-colors hover:border-rose-300 dark:hover:border-rose-400/50 hover:bg-rose-100/80 dark:hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-200"
+                    title="刪除目標"
+                    aria-label="刪除目標"
+                    @onclick="() => OnDeleteGoal.InvokeAsync()">
+                <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5" />
+                </svg>
+                刪除目標
+            </button>
         </div>
     }
 </div>
 
 @code {
     [Parameter] public Goal? Goal { get; set; }
+    [Parameter] public bool IsInProgress { get; set; } = true;
+    [Parameter] public EventCallback<bool> OnInProgressChanged { get; set; }
+    [Parameter] public EventCallback OnAddSkill { get; set; }
+    [Parameter] public EventCallback<Skill> OnEditSkill { get; set; }
+    [Parameter] public EventCallback<Guid> OnDeleteSkill { get; set; }
+    [Parameter] public EventCallback OnEditDate { get; set; }
+    [Parameter] public EventCallback OnClearDate { get; set; }
+    [Parameter] public EventCallback OnDeleteGoal { get; set; }
 
     private const double RingRadius = 52;
     private const double RingCircumference = 2 * Math.PI * RingRadius;
@@ -135,9 +210,9 @@
 
     private static string SkillBadgeClass(SkillStatus status) => status switch
     {
-        SkillStatus.Mastered => "bg-emerald-100/70 text-emerald-700 ring-1 ring-inset ring-emerald-500/20",
-        SkillStatus.Learning => "bg-amber-100/70 text-amber-700 ring-1 ring-inset ring-amber-500/20",
-        _ => "bg-slate-200/70 text-slate-500 ring-1 ring-inset ring-slate-400/20"
+        SkillStatus.Mastered => "bg-emerald-100/70 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/20 dark:ring-emerald-400/30",
+        SkillStatus.Learning => "bg-amber-100/70 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/20 dark:ring-amber-400/30",
+        _ => "bg-slate-200/70 dark:bg-slate-700/60 text-slate-500 dark:text-slate-300 ring-1 ring-inset ring-slate-400/20 dark:ring-slate-500/30"
     };
 
     private static string SkillBarClass(SkillStatus status) => status switch

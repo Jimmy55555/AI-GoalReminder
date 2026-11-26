@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>長期目標提醒器</RootNamespace>
+    <AssemblyName>GoalReminder.Pages</AssemblyName>
+    <StaticWebAssetBasePath Condition="'$(StaticWebAssetBasePath)' == ''">/</StaticWebAssetBasePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="11.0.0" />
+    <ProjectReference Include="..\CloudCore\CloudCore.csproj" />
+  </ItemGroup>
+
+  <!-- 重用現有 Razor 元件，不複製一份 UI。 -->
+  <ItemGroup>
+    <RazorComponent Include="..\長期目標提醒器\Components\GoalDashboard.razor" Link="Components\GoalDashboard.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\GoalSidebar.razor" Link="Components\GoalSidebar.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\Layout\MainLayout.razor" Link="Components\Layout\MainLayout.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\Pages\Home.razor" Link="Components\Pages\Home.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\Pages\Settings.razor" Link="Components\Pages\Settings.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\Pages\NotFound.razor" Link="Components\Pages\NotFound.razor" />
+    <Compile Include="..\長期目標提醒器\Services\SidebarState.cs" Link="Services\SidebarState.cs" />
+    <Compile Include="..\長期目標提醒器\Services\IThemeService.cs" Link="Services\IThemeService.cs" />
+    <Compile Include="..\長期目標提醒器\Services\BrowserThemeService.cs" Link="Services\BrowserThemeService.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,7 @@
 <Solution>
+  <Project Path="CloudCore/CloudCore.csproj" />
+  <Project Path="GitHubPagesApp/GitHubPagesApp.csproj" />
+  <Project Path="Mailer/Mailer.csproj" />
   <Project Path="長期目標提醒器.Client/長期目標提醒器.Client.csproj" />
   <Project Path="長期目標提醒器/長期目標提醒器.csproj" />
 </Solution>

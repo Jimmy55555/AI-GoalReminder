@@ -9,10 +9,22 @@ builder.Services.AddRazorComponents()
     .AddInteractiveWebAssemblyComponents();
 
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.Configure<AiSettings>(builder.Configuration.GetSection(AiSettings.SectionName));
+builder.Services.AddHttpClient<IGoalAdviceClient, GoalAdviceClient>(client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+});
+builder.Services.AddHttpClient<IGoalSkillGenerator, GoalSkillGenerator>(client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com/v1beta/");
+});
 builder.Services.AddSingleton<EmailScheduleStore>();
+builder.Services.AddSingleton<GoalStore>();
+builder.Services.AddSingleton<GoalProgressStore>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddHostedService<DailyGoalDigestWorker>();
 builder.Services.AddScoped<SidebarState>();
+builder.Services.AddScoped<IThemeService, BrowserThemeService>();
 
 var app = builder.Build();
 
@@ -25,11 +37,11 @@ if (!app.Environment.IsDevelopment())
 }
 else
 {
-    app.MapGet("/dev/email-preview", (EmailService email, EmailScheduleStore schedules) =>
+    app.MapGet("/dev/email-preview", (EmailService email, EmailScheduleStore schedules, GoalStore goals) =>
     {
         var timeZone = AppTime.Resolve("Taipei Standard Time");
         return Results.Content(
-            email.BuildBody(長期目標提醒器.Models.GoalSeedData.Goals, AppTime.NowLocal(timeZone), schedules.Current),
+            email.BuildBody(goals.Goals, AppTime.NowLocal(timeZone), schedules.Current),
             "text/html; charset=utf-8");
     });
 }

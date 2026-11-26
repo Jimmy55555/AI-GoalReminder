@@ -1,7 +1,8 @@
 namespace 長期目標提醒器.Models;
 
-public sealed class Skill
+public sealed record Skill
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
     public string Name { get; init; } = "";
     public SkillStatus Status { get; init; }
     public int Progress { get; init; }

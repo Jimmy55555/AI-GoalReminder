@@ -1,23 +1,415 @@
 ﻿@page "/"
-@rendermode InteractiveServer
+@implements IDisposable
+@inject GoalStore GoalStore
+@inject GoalProgressStore GoalProgressStore
+@inject IGoalSkillGenerator SkillGenerator
 
 <PageTitle>長期目標提醒器</PageTitle>
 
-<div class="flex min-h-[calc(100vh-3.5rem)] text-slate-900">
+<div class="flex min-h-[calc(100vh-3.5rem)] text-slate-900 dark:text-slate-100">
     <GoalSidebar Goals="goals"
                  SelectedGoalId="selectedGoalId"
-                 OnGoalSelected="SelectGoal" />
+                 OnGoalSelected="SelectGoal"
+                 OnAddGoal="OpenGoalModal" />
 
     <main class="min-w-0 flex-1">
-        <GoalDashboard Goal="SelectedGoal" />
+        <GoalDashboard Goal="SelectedGoal"
+                       IsInProgress="GoalProgressStore.IsInProgress(selectedGoalId)"
+                       OnInProgressChanged="SetInProgress"
+                       OnAddSkill="OpenSkillModalForNew"
+                       OnEditSkill="OpenSkillModalForEdit"
+                       OnDeleteSkill="ConfirmDeleteSkill"
+                       OnEditDate="OpenDateModal"
+                       OnClearDate="ConfirmClearGoalDate"
+                       OnDeleteGoal="ConfirmDeleteGoal" />
     </main>
 </div>
 
-@code {
-    private readonly IReadOnlyList<Goal> goals = GoalSeedData.Goals;
-    private Guid selectedGoalId = GoalSeedData.Goals[0].Id;
+@if (showGoalModal)
+{
+    <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-md rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">新增目標</h2>
+            <label class="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">標題</label>
+            <input class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60 dark:[color-scheme:dark]"
+                   @bind="newGoalTitle" placeholder="例如：學會 Python" />
+            <label class="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">描述</label>
+            <textarea class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                      rows="2" @bind="newGoalDescription" placeholder="想達成什麼？"></textarea>
+            <label class="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">目標日期（選填）</label>
+            <input type="date" class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60 dark:[color-scheme:dark]"
+                   @bind="newGoalDate" />
+            <label class="mt-4 flex min-h-11 items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+                <input type="checkbox" class="h-4 w-4 accent-indigo-600 dark:accent-indigo-400" @bind="generateSkillsWithAi" />
+                使用 AI 自動生成技能
+            </label>
+            @if (formError is not null)
+            {
+                <p class="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">@formError</p>
+            }
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="CloseGoalModal">取消</button>
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
+                        disabled="@isSubmitting"
+                        @onclick="SubmitGoalAsync">@(isSubmitting ? "產生中…" : "新增")</button>
+            </div>
+        </div>
+    </div>
+}
 
-    private Goal? SelectedGoal => goals.FirstOrDefault(g => g.Id == selectedGoalId);
+@if (showSkillModal)
+{
+    <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-md rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">@(editingSkillId is null ? "新增技能" : "編輯技能")</h2>
+            <label class="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">名稱</label>
+            <input class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                   @bind="skillName" />
+            <div class="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300">狀態</label>
+                    <select class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                            @bind="skillStatus">
+                        <option value="@SkillStatus.NotStarted">未開始</option>
+                        <option value="@SkillStatus.Learning">學習中</option>
+                        <option value="@SkillStatus.Mastered">已掌握</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300">進度 (%)</label>
+                    <input type="number" min="0" max="100"
+                           class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                           @bind="skillProgress" />
+                </div>
+            </div>
+            <label class="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">備註</label>
+            <textarea class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                      rows="2" @bind="skillNote"></textarea>
+            @if (formError is not null)
+            {
+                <p class="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">@formError</p>
+            }
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="CloseSkillModal">取消</button>
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400"
+                        @onclick="SubmitSkill">儲存</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDateModal)
+{
+    <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">設定目標日期</h2>
+            <label class="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">目標日期（留空即為不設定）</label>
+            <input type="date" class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60 dark:[color-scheme:dark]"
+                   @bind="editingDate" />
+            <div class="mt-4 flex items-center justify-end gap-2">
+                @if (SelectedGoal?.TargetDate is not null)
+                {
+                    <button type="button"
+                            class="mr-auto inline-flex min-h-10 items-center rounded-lg px-2 py-2 text-xs text-rose-600 dark:text-rose-300 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-700 dark:hover:text-rose-200"
+                            @onclick="ConfirmClearGoalDate">移除日期</button>
+                }
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="CloseDateModal">取消</button>
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400"
+                        @onclick="SaveGoalDate">儲存</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (confirmMessage is not null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">@confirmMessage</p>
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="CancelConfirm">取消</button>
+                <button type="button"
+                        class="inline-flex min-h-10 items-center rounded-lg bg-rose-600 dark:bg-rose-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-500 dark:hover:bg-rose-400"
+                        @onclick="RunConfirmAsync">@confirmLabel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<Goal> goals => GoalStore.Goals;
+    private Guid selectedGoalId;
+
+    private bool showGoalModal;
+    private string newGoalTitle = "";
+    private string newGoalDescription = "";
+    private DateTime? newGoalDate;
+    private bool generateSkillsWithAi;
+    private bool isSubmitting;
+    private string? formError;
+
+    private bool showSkillModal;
+    private Guid? editingSkillId;
+    private string skillName = "";
+    private SkillStatus skillStatus = SkillStatus.NotStarted;
+    private int skillProgress;
+    private string skillNote = "";
+
+    private bool showDateModal;
+    private DateTime? editingDate;
+
+    private string? confirmMessage;
+    private string confirmLabel = "刪除";
+    private Func<Task>? confirmAction;
+
+    private Goal? SelectedGoal => goals.FirstOrDefault(goal => goal.Id == selectedGoalId);
+
+    protected override void OnInitialized()
+    {
+        selectedGoalId = goals.FirstOrDefault()?.Id ?? Guid.Empty;
+        GoalStore.Changed += OnStoreChanged;
+    }
+
+    private async void OnStoreChanged()
+    {
+        try
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        GoalStore.Changed -= OnStoreChanged;
+    }
 
     private void SelectGoal(Goal goal) => selectedGoalId = goal.Id;
+
+    private void SetInProgress(bool value) => GoalProgressStore.SetInProgress(selectedGoalId, value);
+
+    private void OpenGoalModal()
+    {
+        newGoalTitle = "";
+        newGoalDescription = "";
+        newGoalDate = null;
+        generateSkillsWithAi = false;
+        isSubmitting = false;
+        formError = null;
+        showGoalModal = true;
+    }
+
+    private void CloseGoalModal()
+    {
+        showGoalModal = false;
+        formError = null;
+    }
+
+    private async Task SubmitGoalAsync()
+    {
+        var title = newGoalTitle.Trim();
+        if (title.Length == 0)
+        {
+            formError = "請輸入目標標題。";
+            return;
+        }
+
+        DateOnly? targetDate = newGoalDate is { } date ? DateOnly.FromDateTime(date) : null;
+
+        IReadOnlyList<Skill> skills = [];
+        if (generateSkillsWithAi)
+        {
+            isSubmitting = true;
+            formError = null;
+            try
+            {
+                var generated = await SkillGenerator.GenerateAsync(title, newGoalDescription.Trim(), targetDate);
+                if (generated.Error is not null)
+                {
+                    formError = generated.Error;
+                    return;
+                }
+
+                skills = generated.Skills;
+            }
+            finally
+            {
+                isSubmitting = false;
+            }
+        }
+
+        var goal = new Goal
+        {
+            Title = title,
+            Description = newGoalDescription.Trim(),
+            IsInProgress = false,
+            TargetDate = targetDate,
+            Skills = skills
+        };
+
+        GoalStore.AddGoal(goal);
+        GoalProgressStore.SetInProgress(goal.Id, false);
+        selectedGoalId = goal.Id;
+        CloseGoalModal();
+    }
+
+    private void OpenSkillModalForNew()
+    {
+        editingSkillId = null;
+        skillName = "";
+        skillStatus = SkillStatus.NotStarted;
+        skillProgress = 0;
+        skillNote = "";
+        formError = null;
+        showSkillModal = true;
+    }
+
+    private void OpenSkillModalForEdit(Skill skill)
+    {
+        editingSkillId = skill.Id;
+        skillName = skill.Name;
+        skillStatus = skill.Status;
+        skillProgress = skill.Progress;
+        skillNote = skill.Note;
+        formError = null;
+        showSkillModal = true;
+    }
+
+    private void CloseSkillModal()
+    {
+        showSkillModal = false;
+        formError = null;
+    }
+
+    private void SubmitSkill()
+    {
+        var name = skillName.Trim();
+        if (name.Length == 0)
+        {
+            formError = "請輸入技能名稱。";
+            return;
+        }
+
+        var skill = new Skill
+        {
+            Name = name,
+            Status = skillStatus,
+            Progress = Math.Clamp(skillProgress, 0, 100),
+            Note = skillNote.Trim()
+        };
+
+        if (editingSkillId is { } skillId)
+        {
+            GoalStore.UpdateSkill(selectedGoalId, skillId, skill);
+        }
+        else
+        {
+            GoalStore.AddSkill(selectedGoalId, skill);
+        }
+
+        CloseSkillModal();
+    }
+
+    private void OpenDateModal()
+    {
+        editingDate = SelectedGoal?.TargetDate?.ToDateTime(TimeOnly.MinValue);
+        showDateModal = true;
+    }
+
+    private void CloseDateModal()
+    {
+        showDateModal = false;
+    }
+
+    private void SaveGoalDate()
+    {
+        GoalStore.SetTargetDate(
+            selectedGoalId,
+            editingDate is { } date ? DateOnly.FromDateTime(date) : null);
+        CloseDateModal();
+    }
+
+    private void ConfirmClearGoalDate()
+    {
+        if (SelectedGoal?.TargetDate is null)
+        {
+            CloseDateModal();
+            return;
+        }
+
+        CloseDateModal();
+        confirmMessage = "確定移除目標日期？";
+        confirmLabel = "移除";
+        confirmAction = () =>
+        {
+            GoalStore.SetTargetDate(selectedGoalId, null);
+            return Task.CompletedTask;
+        };
+    }
+
+    private void ConfirmDeleteSkill(Guid skillId)
+    {
+        var skill = SelectedGoal?.Skills.FirstOrDefault(skill => skill.Id == skillId);
+        if (skill is null)
+        {
+            return;
+        }
+
+        confirmMessage = $"確定刪除技能「{skill.Name}」？";
+        confirmLabel = "刪除";
+        confirmAction = () =>
+        {
+            GoalStore.DeleteSkill(selectedGoalId, skillId);
+            return Task.CompletedTask;
+        };
+    }
+
+    private void ConfirmDeleteGoal()
+    {
+        var goal = SelectedGoal;
+        if (goal is null)
+        {
+            return;
+        }
+
+        confirmMessage = $"確定刪除目標「{goal.Title}」？技能也會一併刪除。";
+        confirmLabel = "刪除";
+        confirmAction = () =>
+        {
+            GoalStore.DeleteGoal(goal.Id);
+            GoalProgressStore.Remove(goal.Id);
+            selectedGoalId = GoalStore.Goals.FirstOrDefault()?.Id ?? Guid.Empty;
+            return Task.CompletedTask;
+        };
+    }
+
+    private void CancelConfirm()
+    {
+        confirmMessage = null;
+        confirmLabel = "刪除";
+        confirmAction = null;
+    }
+
+    private async Task RunConfirmAsync()
+    {
+        var action = confirmAction;
+        CancelConfirm();
+        if (action is not null)
+        {
+            await action();
+        }
+    }
 }

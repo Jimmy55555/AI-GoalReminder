@@ -1,0 +1,71 @@
+@namespace 長期目標提醒器.Components.Pages
+@inject AuthService Auth
+
+<div class="relative isolate grid min-h-screen place-items-center overflow-x-hidden px-4 text-slate-900 dark:text-slate-100">
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+        <div class="absolute inset-0 bg-[linear-gradient(120deg,#eef2ff,#e0f2fe,#ecfeff,#ecfdf5)] dark:bg-[linear-gradient(120deg,#020617,#0f172a,#0c1a2b,#052e2b)]"></div>
+        <div class="absolute -left-40 -top-40 h-[40rem] w-[40rem] rounded-full bg-indigo-400/50 blur-3xl will-change-transform animate-orbit-a motion-reduce:animate-none"></div>
+        <div class="absolute -right-40 top-1/4 h-[38rem] w-[38rem] rounded-full bg-cyan-400/45 blur-3xl will-change-transform animate-orbit-b motion-reduce:animate-none"></div>
+    </div>
+
+    <section class="w-full max-w-sm rounded-2xl border-2 border-white/60 bg-white/70 p-6 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/70">
+        <div class="font-mono text-[10px] uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Private Access</div>
+        <h1 class="mt-2 text-2xl font-semibold tracking-tight">長期目標提醒器</h1>
+        <p class="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">這是私人空間，請用你的 Supabase 帳號登入。</p>
+
+        <EditForm Model="this" OnValidSubmit="SignInAsync" class="mt-5 space-y-3">
+            <label class="block">
+                <span class="block text-xs font-medium text-slate-600 dark:text-slate-300">帳號（Email）</span>
+                <input type="email" required autocomplete="username" @bind="email"
+                       class="mt-1 w-full rounded-lg border border-white/70 bg-white/70 px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-800/70 dark:text-white dark:[color-scheme:dark]" />
+            </label>
+            <label class="block">
+                <span class="block text-xs font-medium text-slate-600 dark:text-slate-300">密碼</span>
+                <input type="password" required autocomplete="current-password" @bind="password"
+                       class="mt-1 w-full rounded-lg border border-white/70 bg-white/70 px-3 py-2.5 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-800/70 dark:text-white dark:[color-scheme:dark]" />
+            </label>
+
+            @if (error is not null)
+            {
+                <p class="text-xs text-rose-600 dark:text-rose-300" role="alert">@error</p>
+            }
+
+            <button type="submit" disabled="@busy"
+                    class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-60 dark:bg-indigo-500 dark:hover:bg-indigo-400">
+                @(busy ? "登入中…" : "登入")
+            </button>
+        </EditForm>
+    </section>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnSignedIn { get; set; }
+
+    private string email = "";
+    private string password = "";
+    private string? error;
+    private bool busy;
+
+    private async Task SignInAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            await Auth.SignInAsync(email, password);
+            await OnSignedIn.InvokeAsync();
+        }
+        catch (SupabaseException ex)
+        {
+            error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            error = "無法連上雲端服務，請稍後再試。";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

@@ -1,12 +1,12 @@
 namespace 長期目標提醒器.Models;
 
-public sealed class Goal
+public sealed record Goal
 {
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Title { get; init; } = "";
     public string Description { get; init; } = "";
-    public string Icon { get; init; } = "🎯";
-    public DateOnly TargetDate { get; init; }
+    public bool IsInProgress { get; init; } = true;
+    public DateOnly? TargetDate { get; init; }
     public IReadOnlyList<Skill> Skills { get; init; } = [];
 
     public int ProgressPercent =>
@@ -16,5 +16,5 @@ public sealed class Goal
     public int LearningCount => Skills.Count(s => s.Status == SkillStatus.Learning);
     public int NotStartedCount => Skills.Count(s => s.Status == SkillStatus.NotStarted);
 
-    public int DaysRemaining => TargetDate.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
+    public int? DaysRemaining => TargetDate?.DayNumber - DateOnly.FromDateTime(DateTime.Today).DayNumber;
 }

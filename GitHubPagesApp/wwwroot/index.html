@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <title>長期目標提醒器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    keyframes: {
+                        'orbit-a': {
+                            '0%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+                            '25%': { transform: 'translate3d(55vw, 8vh, 0) scale(1.15)' },
+                            '50%': { transform: 'translate3d(35vw, 52vh, 0) scale(0.9)' },
+                            '75%': { transform: 'translate3d(-8vw, 34vh, 0) scale(1.1)' },
+                            '100%': { transform: 'translate3d(0, 0, 0) scale(1)' }
+                        },
+                        'orbit-b': {
+                            '0%': { transform: 'translate3d(0, 0, 0) scale(1.1)' },
+                            '25%': { transform: 'translate3d(-45vw, 26vh, 0) scale(0.9)' },
+                            '50%': { transform: 'translate3d(-18vw, -12vh, 0) scale(1.2)' },
+                            '75%': { transform: 'translate3d(28vw, 12vh, 0) scale(1)' },
+                            '100%': { transform: 'translate3d(0, 0, 0) scale(1.1)' }
+                        }
+                    },
+                    animation: {
+                        'orbit-a': 'orbit-a 17s ease-in-out infinite',
+                        'orbit-b': 'orbit-b 21s ease-in-out infinite'
+                    }
+                }
+            }
+        };
+    </script>
+    <script>
+        // 在頁面繪製前決定深/淺色，避免重新載入時先閃一下淺色。
+        (function () {
+            const key = 'theme';
+            const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function stored() {
+                try { return localStorage.getItem(key); } catch { return null; }
+            }
+
+            function syncButton() {
+                const btn = document.getElementById('theme-toggle');
+                if (!btn) return;
+                const dark = document.documentElement.classList.contains('dark');
+                const label = dark ? '切換淺色模式' : '切換深色模式';
+                btn.title = label;
+                btn.setAttribute('aria-label', label);
+            }
+
+            function apply(dark) {
+                document.documentElement.classList.toggle('dark', dark);
+                syncButton();
+            }
+
+            apply(stored() === 'dark' || (stored() === null && media.matches));
+
+            window.appTheme = {
+                isDark: function () {
+                    return document.documentElement.classList.contains('dark');
+                },
+                toggle: function () {
+                    const dark = !document.documentElement.classList.contains('dark');
+                    apply(dark);
+                    try { localStorage.setItem(key, dark ? 'dark' : 'light'); } catch { }
+                }
+            };
+
+            document.addEventListener('DOMContentLoaded', syncButton);
+
+            const onSystemChange = function (e) {
+                if (stored() === null) apply(e.matches);
+            };
+            if (media.addEventListener) media.addEventListener('change', onSystemChange);
+            else if (media.addListener) media.addListener(onSystemChange);
+        })();
+    </script>
+</head>
+
+<body class="bg-indigo-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 dark:[color-scheme:dark]">
+    <div id="app">正在載入…</div>
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

@@ -110,7 +110,8 @@ public sealed class EmailScheduleStore
             Frequency = schedule.Frequency,
             WeeklyDay = schedule.WeeklyDay,
             MonthlyDay = Math.Clamp(schedule.MonthlyDay, 1, 28),
-            Recipient = (schedule.Recipient ?? "").Trim()
+            Recipient = (schedule.Recipient ?? "").Trim(),
+            AiEnabled = schedule.AiEnabled
         };
     }
 }
