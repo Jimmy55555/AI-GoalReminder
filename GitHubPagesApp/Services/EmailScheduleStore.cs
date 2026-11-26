@@ -31,7 +31,7 @@ public sealed class EmailScheduleStore(
 
         if (rows.Count == 0 && !string.IsNullOrWhiteSpace(sessionStore.UserId))
         {
-            await SaveAsync(new EmailSchedule(), cancellationToken);
+            await PersistAsync(Normalize(new EmailSchedule()), cancellationToken);
             rows = await supabase.GetAsync<List<ScheduleRow>>($"{Table}?select=*&limit=1", cancellationToken) ?? [];
         }
 
@@ -44,18 +44,20 @@ public sealed class EmailScheduleStore(
         Changed?.Invoke();
     }
 
-    public void Save(EmailSchedule schedule)
+    public async Task SaveAsync(EmailSchedule schedule)
     {
+        var normalized = Normalize(schedule);
+        await PersistAsync(normalized);
+
         lock (gate)
         {
-            current = Normalize(schedule);
+            current = normalized;
         }
 
-        RunAsync(SaveAsync(current));
         Changed?.Invoke();
     }
 
-    private async Task SaveAsync(EmailSchedule schedule, CancellationToken cancellationToken = default)
+    private async Task PersistAsync(EmailSchedule schedule, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sessionStore.UserId))
         {
@@ -111,21 +113,6 @@ public sealed class EmailScheduleStore(
         Recipient = row.Recipient,
         AiEnabled = row.AiEnabled
     });
-
-    private static void RunAsync(Task task) =>
-        _ = RunInternalAsync(task);
-
-    private static async Task RunInternalAsync(Task task)
-    {
-        try
-        {
-            await task;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Supabase 寫入失敗：{ex.Message}");
-        }
-    }
 
     private sealed class ScheduleRow
     {

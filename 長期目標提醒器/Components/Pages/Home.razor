@@ -13,6 +13,12 @@
                  OnAddGoal="OpenGoalModal" />
 
     <main class="min-w-0 flex-1">
+        @if (formError is not null && !showGoalModal && !showSkillModal && !showDateModal && confirmMessage is null)
+        {
+            <div class="px-4 pt-3 sm:px-6">
+                <p class="rounded-lg border border-rose-300/70 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-400/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200" role="alert">@formError</p>
+            </div>
+        }
         <GoalDashboard Goal="SelectedGoal"
                        IsInProgress="GoalProgressStore.IsInProgress(selectedGoalId)"
                        OnInProgressChanged="SetInProgress"
@@ -54,7 +60,7 @@
                 <button type="button"
                         class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
                         disabled="@isSubmitting"
-                        @onclick="SubmitGoalAsync">@(isSubmitting ? "產生中…" : "新增")</button>
+                        @onclick="SubmitGoalAsync">@(isSubmitting ? "處理中…" : "新增")</button>
             </div>
         </div>
     </div>
@@ -97,8 +103,9 @@
                         class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
                         @onclick="CloseSkillModal">取消</button>
                 <button type="button"
-                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400"
-                        @onclick="SubmitSkill">儲存</button>
+                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
+                        disabled="@isSubmitting"
+                        @onclick="SubmitSkillAsync">@(isSubmitting ? "儲存中…" : "儲存")</button>
             </div>
         </div>
     </div>
@@ -112,6 +119,10 @@
             <label class="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">目標日期（留空即為不設定）</label>
             <input type="date" class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60 dark:[color-scheme:dark]"
                    @bind="editingDate" />
+            @if (formError is not null)
+            {
+                <p class="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">@formError</p>
+            }
             <div class="mt-4 flex items-center justify-end gap-2">
                 @if (SelectedGoal?.TargetDate is not null)
                 {
@@ -123,8 +134,9 @@
                         class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
                         @onclick="CloseDateModal">取消</button>
                 <button type="button"
-                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400"
-                        @onclick="SaveGoalDate">儲存</button>
+                        class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
+                        disabled="@isSubmitting"
+                        @onclick="SaveGoalDateAsync">@(isSubmitting ? "儲存中…" : "儲存")</button>
             </div>
         </div>
     </div>
@@ -135,13 +147,18 @@
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
         <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
             <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">@confirmMessage</p>
+            @if (formError is not null)
+            {
+                <p class="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">@formError</p>
+            }
             <div class="mt-4 flex items-center justify-end gap-2">
                 <button type="button"
                         class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
                         @onclick="CancelConfirm">取消</button>
                 <button type="button"
-                        class="inline-flex min-h-10 items-center rounded-lg bg-rose-600 dark:bg-rose-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-500 dark:hover:bg-rose-400"
-                        @onclick="RunConfirmAsync">@confirmLabel</button>
+                        class="inline-flex min-h-10 items-center rounded-lg bg-rose-600 dark:bg-rose-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose-500 dark:hover:bg-rose-400 disabled:opacity-60"
+                        disabled="@isSubmitting"
+                        @onclick="RunConfirmAsync">@(isSubmitting ? "處理中…" : confirmLabel)</button>
             </div>
         </div>
     </div>
@@ -199,7 +216,18 @@
 
     private void SelectGoal(Goal goal) => selectedGoalId = goal.Id;
 
-    private void SetInProgress(bool value) => GoalProgressStore.SetInProgress(selectedGoalId, value);
+    private async Task SetInProgress(bool value)
+    {
+        formError = null;
+        try
+        {
+            await GoalProgressStore.SetInProgress(selectedGoalId, value);
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+    }
 
     private void OpenGoalModal()
     {
@@ -220,6 +248,7 @@
 
     private async Task SubmitGoalAsync()
     {
+        formError = null;
         var title = newGoalTitle.Trim();
         if (title.Length == 0)
         {
@@ -227,14 +256,13 @@
             return;
         }
 
-        DateOnly? targetDate = newGoalDate is { } date ? DateOnly.FromDateTime(date) : null;
-
-        IReadOnlyList<Skill> skills = [];
-        if (generateSkillsWithAi)
+        isSubmitting = true;
+        try
         {
-            isSubmitting = true;
-            formError = null;
-            try
+            DateOnly? targetDate = newGoalDate is { } date ? DateOnly.FromDateTime(date) : null;
+
+            IReadOnlyList<Skill> skills = [];
+            if (generateSkillsWithAi)
             {
                 var generated = await SkillGenerator.GenerateAsync(title, newGoalDescription.Trim(), targetDate);
                 if (generated.Error is not null)
@@ -245,25 +273,28 @@
 
                 skills = generated.Skills;
             }
-            finally
+
+            var goal = new Goal
             {
-                isSubmitting = false;
-            }
+                Title = title,
+                Description = newGoalDescription.Trim(),
+                IsInProgress = false,
+                TargetDate = targetDate,
+                Skills = skills
+            };
+
+            await GoalStore.AddGoal(goal);
+            selectedGoalId = goal.Id;
+            CloseGoalModal();
         }
-
-        var goal = new Goal
+        catch (Exception ex)
         {
-            Title = title,
-            Description = newGoalDescription.Trim(),
-            IsInProgress = false,
-            TargetDate = targetDate,
-            Skills = skills
-        };
-
-        GoalStore.AddGoal(goal);
-        GoalProgressStore.SetInProgress(goal.Id, false);
-        selectedGoalId = goal.Id;
-        CloseGoalModal();
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 
     private void OpenSkillModalForNew()
@@ -294,8 +325,9 @@
         formError = null;
     }
 
-    private void SubmitSkill()
+    private async Task SubmitSkillAsync()
     {
+        formError = null;
         var name = skillName.Trim();
         if (name.Length == 0)
         {
@@ -311,35 +343,62 @@
             Note = skillNote.Trim()
         };
 
-        if (editingSkillId is { } skillId)
+        isSubmitting = true;
+        try
         {
-            GoalStore.UpdateSkill(selectedGoalId, skillId, skill);
-        }
-        else
-        {
-            GoalStore.AddSkill(selectedGoalId, skill);
-        }
+            if (editingSkillId is { } skillId)
+            {
+                await GoalStore.UpdateSkill(selectedGoalId, skillId, skill);
+            }
+            else
+            {
+                await GoalStore.AddSkill(selectedGoalId, skill);
+            }
 
-        CloseSkillModal();
+            CloseSkillModal();
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 
     private void OpenDateModal()
     {
         editingDate = SelectedGoal?.TargetDate?.ToDateTime(TimeOnly.MinValue);
+        formError = null;
         showDateModal = true;
     }
 
     private void CloseDateModal()
     {
         showDateModal = false;
+        formError = null;
     }
 
-    private void SaveGoalDate()
+    private async Task SaveGoalDateAsync()
     {
-        GoalStore.SetTargetDate(
-            selectedGoalId,
-            editingDate is { } date ? DateOnly.FromDateTime(date) : null);
-        CloseDateModal();
+        formError = null;
+        isSubmitting = true;
+        try
+        {
+            await GoalStore.SetTargetDate(
+                selectedGoalId,
+                editingDate is { } date ? DateOnly.FromDateTime(date) : null);
+            CloseDateModal();
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
     }
 
     private void ConfirmClearGoalDate()
@@ -353,11 +412,7 @@
         CloseDateModal();
         confirmMessage = "確定移除目標日期？";
         confirmLabel = "移除";
-        confirmAction = () =>
-        {
-            GoalStore.SetTargetDate(selectedGoalId, null);
-            return Task.CompletedTask;
-        };
+        confirmAction = async () => await GoalStore.SetTargetDate(selectedGoalId, null);
     }
 
     private void ConfirmDeleteSkill(Guid skillId)
@@ -370,11 +425,7 @@
 
         confirmMessage = $"確定刪除技能「{skill.Name}」？";
         confirmLabel = "刪除";
-        confirmAction = () =>
-        {
-            GoalStore.DeleteSkill(selectedGoalId, skillId);
-            return Task.CompletedTask;
-        };
+        confirmAction = async () => await GoalStore.DeleteSkill(selectedGoalId, skillId);
     }
 
     private void ConfirmDeleteGoal()
@@ -387,12 +438,11 @@
 
         confirmMessage = $"確定刪除目標「{goal.Title}」？技能也會一併刪除。";
         confirmLabel = "刪除";
-        confirmAction = () =>
+        confirmAction = async () =>
         {
-            GoalStore.DeleteGoal(goal.Id);
-            GoalProgressStore.Remove(goal.Id);
+            await GoalStore.DeleteGoal(goal.Id);
+            await GoalProgressStore.Remove(goal.Id);
             selectedGoalId = GoalStore.Goals.FirstOrDefault()?.Id ?? Guid.Empty;
-            return Task.CompletedTask;
         };
     }
 
@@ -401,15 +451,36 @@
         confirmMessage = null;
         confirmLabel = "刪除";
         confirmAction = null;
+        formError = null;
     }
 
     private async Task RunConfirmAsync()
     {
         var action = confirmAction;
-        CancelConfirm();
-        if (action is not null)
+        if (action is null)
+        {
+            return;
+        }
+
+        formError = null;
+        isSubmitting = true;
+        try
         {
             await action();
+            CancelConfirm();
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            isSubmitting = false;
         }
     }
+
+    private static string SaveError(Exception ex) =>
+        ex is System.Net.Http.HttpRequestException
+            ? "目前無法連線到雲端，請檢查網路後再試。"
+            : $"儲存失敗：{ex.Message}";
 }

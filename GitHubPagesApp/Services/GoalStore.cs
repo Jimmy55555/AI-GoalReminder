@@ -5,6 +5,7 @@ namespace 長期目標提醒器.Services;
 
 /// <summary>
 /// Supabase 版目標儲存。每次登入／重新載入都重抓雲端資料，不留離線資料庫。
+/// 所有寫入都先等雲端成功，再更新畫面資料；失敗直接拋給呼叫端顯示錯誤。
 /// </summary>
 public sealed class GoalStore(
     SupabaseClient supabase,
@@ -53,49 +54,52 @@ public sealed class GoalStore(
         Changed?.Invoke();
     }
 
-    public void AddGoal(Goal goal)
+    public async Task AddGoal(Goal goal)
     {
+        await supabase.PostAsync<GoalRow>(Table, ToRow(goal));
+
         lock (gate)
         {
             goals.Add(goal);
         }
 
-        RunAsync(supabase.PostAsync<GoalRow>(Table, ToRow(goal)));
         Changed?.Invoke();
     }
 
-    public void SetTargetDate(Guid goalId, DateOnly? targetDate)
+    public async Task SetTargetDate(Guid goalId, DateOnly? targetDate)
     {
+        await supabase.PatchAsync<GoalRow>(
+            $"{Table}?id=eq.{goalId}",
+            new { target_date = targetDate });
+
         lock (gate)
         {
             var index = goals.FindIndex(goal => goal.Id == goalId);
-            if (index < 0)
+            if (index >= 0)
             {
-                return;
+                goals[index] = goals[index] with { TargetDate = targetDate };
             }
-
-            goals[index] = goals[index] with { TargetDate = targetDate };
-            RunAsync(supabase.PatchAsync<GoalRow>(
-                $"{Table}?id=eq.{goalId}",
-                new { target_date = targetDate }));
         }
 
         Changed?.Invoke();
     }
 
-    public void DeleteGoal(Guid goalId)
+    public async Task DeleteGoal(Guid goalId)
     {
+        await supabase.DeleteAsync($"{Table}?id=eq.{goalId}");
+
         lock (gate)
         {
             goals.RemoveAll(goal => goal.Id == goalId);
         }
 
-        RunAsync(supabase.DeleteAsync($"{Table}?id=eq.{goalId}"));
         Changed?.Invoke();
     }
 
-    public void AddSkill(Guid goalId, Skill skill)
+    public async Task AddSkill(Guid goalId, Skill skill)
     {
+        Skill[]? updatedSkills = null;
+
         lock (gate)
         {
             var index = goals.FindIndex(goal => goal.Id == goalId);
@@ -104,19 +108,29 @@ public sealed class GoalStore(
                 return;
             }
 
-            var skills = goals[index].Skills.ToList();
-            skills.Add(skill);
-            goals[index] = goals[index] with { Skills = skills.ToArray() };
-            RunAsync(supabase.PatchAsync<GoalRow>(
-                $"{Table}?id=eq.{goalId}",
-                new { skills = skills }));
+            updatedSkills = [.. goals[index].Skills, skill];
+        }
+
+        await supabase.PatchAsync<GoalRow>(
+            $"{Table}?id=eq.{goalId}",
+            new { skills = updatedSkills });
+
+        lock (gate)
+        {
+            var index = goals.FindIndex(goal => goal.Id == goalId);
+            if (index >= 0)
+            {
+                goals[index] = goals[index] with { Skills = updatedSkills! };
+            }
         }
 
         Changed?.Invoke();
     }
 
-    public void UpdateSkill(Guid goalId, Guid skillId, Skill updated)
+    public async Task UpdateSkill(Guid goalId, Guid skillId, Skill updated)
     {
+        Skill[]? updatedSkills = null;
+
         lock (gate)
         {
             var index = goals.FindIndex(goal => goal.Id == goalId);
@@ -133,17 +147,29 @@ public sealed class GoalStore(
             }
 
             skills[skillIndex] = updated with { Id = skillId };
-            goals[index] = goals[index] with { Skills = skills.ToArray() };
-            RunAsync(supabase.PatchAsync<GoalRow>(
-                $"{Table}?id=eq.{goalId}",
-                new { skills }));
+            updatedSkills = skills.ToArray();
+        }
+
+        await supabase.PatchAsync<GoalRow>(
+            $"{Table}?id=eq.{goalId}",
+            new { skills = updatedSkills });
+
+        lock (gate)
+        {
+            var index = goals.FindIndex(goal => goal.Id == goalId);
+            if (index >= 0)
+            {
+                goals[index] = goals[index] with { Skills = updatedSkills! };
+            }
         }
 
         Changed?.Invoke();
     }
 
-    public void DeleteSkill(Guid goalId, Guid skillId)
+    public async Task DeleteSkill(Guid goalId, Guid skillId)
     {
+        Skill[]? updatedSkills = null;
+
         lock (gate)
         {
             var index = goals.FindIndex(goal => goal.Id == goalId);
@@ -152,11 +178,20 @@ public sealed class GoalStore(
                 return;
             }
 
-            var skills = goals[index].Skills.Where(skill => skill.Id != skillId).ToList();
-            goals[index] = goals[index] with { Skills = skills.ToArray() };
-            RunAsync(supabase.PatchAsync<GoalRow>(
-                $"{Table}?id=eq.{goalId}",
-                new { skills }));
+            updatedSkills = goals[index].Skills.Where(skill => skill.Id != skillId).ToArray();
+        }
+
+        await supabase.PatchAsync<GoalRow>(
+            $"{Table}?id=eq.{goalId}",
+            new { skills = updatedSkills });
+
+        lock (gate)
+        {
+            var index = goals.FindIndex(goal => goal.Id == goalId);
+            if (index >= 0)
+            {
+                goals[index] = goals[index] with { Skills = updatedSkills! };
+            }
         }
 
         Changed?.Invoke();
@@ -216,21 +251,6 @@ public sealed class GoalStore(
         TargetDate = row.TargetDate,
         Skills = row.Skills ?? []
     };
-
-    private static void RunAsync(Task task) =>
-        _ = RunInternalAsync(task);
-
-    private static async Task RunInternalAsync(Task task)
-    {
-        try
-        {
-            await task;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Supabase 寫入失敗：{ex.Message}");
-        }
-    }
 
     private sealed class GoalRow
     {

@@ -37,48 +37,35 @@ public sealed class GoalProgressStore(
         Changed?.Invoke();
     }
 
-    public void SetInProgress(Guid goalId, bool value)
+    public async Task SetInProgress(Guid goalId, bool value)
     {
+        await supabase.PostAsync<ProgressRow>(
+            $"{Table}?on_conflict=goal_id",
+            new { goal_id = goalId, owner_id = sessionStore.UserId, is_in_progress = value },
+            "resolution=merge-duplicates");
+
         lock (gate)
         {
             flags[goalId] = value;
         }
 
-        RunAsync(supabase.PostAsync<ProgressRow>(
-            $"{Table}?on_conflict=goal_id",
-            new { goal_id = goalId, owner_id = sessionStore.UserId, is_in_progress = value },
-            "resolution=merge-duplicates"));
         Changed?.Invoke();
     }
 
-    public void Remove(Guid goalId)
+    public async Task Remove(Guid goalId)
     {
+        await supabase.DeleteAsync($"{Table}?goal_id=eq.{goalId}");
+
         lock (gate)
         {
             flags.Remove(goalId);
         }
 
-        RunAsync(supabase.DeleteAsync($"{Table}?goal_id=eq.{goalId}"));
         Changed?.Invoke();
     }
 
     private static bool Default(Guid goalId) =>
         GoalSeedData.Goals.FirstOrDefault(goal => goal.Id == goalId)?.IsInProgress ?? false;
-
-    private static void RunAsync(Task task) =>
-        _ = RunInternalAsync(task);
-
-    private static async Task RunInternalAsync(Task task)
-    {
-        try
-        {
-            await task;
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Supabase 寫入失敗：{ex.Message}");
-        }
-    }
 
     private sealed class ProgressRow
     {

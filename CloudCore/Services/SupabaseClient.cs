@@ -59,7 +59,7 @@ public sealed class SupabaseClient
         };
         request.Headers.TryAddWithoutValidation(
             "Prefer",
-            string.IsNullOrWhiteSpace(prefer) ? "return=representation" : $"{prefer},return=representation");
+            string.IsNullOrWhiteSpace(prefer) ? "return=minimal" : $"{prefer},return=minimal");
         AddHeaders(request);
         return await SupabaseSendAsync<T>(request, cancellationToken);
     }
@@ -70,7 +70,7 @@ public sealed class SupabaseClient
         {
             Content = JsonContent.Create(body, options: RestJsonOptions)
         };
-        request.Headers.TryAddWithoutValidation("Prefer", "return=representation");
+        request.Headers.TryAddWithoutValidation("Prefer", "return=minimal");
         AddHeaders(request);
         return await SupabaseSendAsync<T>(request, cancellationToken);
     }
@@ -126,7 +126,10 @@ public sealed class SupabaseClient
             return default;
         }
 
-        return await response.Content.ReadFromJsonAsync<T>(RestJsonOptions, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(body) || body == "null"
+            ? default
+            : JsonSerializer.Deserialize<T>(body, RestJsonOptions);
     }
 
     private static async Task<string> ReadErrorAsync(HttpResponseMessage response, CancellationToken cancellationToken)

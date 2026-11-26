@@ -211,7 +211,7 @@
         saving = true; 
         try
         {
-            ScheduleStore.Save(model);
+            await ScheduleStore.SaveAsync(model);
             model = Copy(ScheduleStore.Current);
             saved = Copy(model);
             message = "設定已儲存，排程已重新計算。";
@@ -219,7 +219,7 @@
         }
         catch (Exception ex)
         {
-            message = $"儲存失敗：{ex.Message}";
+            message = SaveError(ex);
             messageIsError = true;
         }
         finally
@@ -251,6 +251,11 @@
             sending = false;
         }
     }
+
+    private static string SaveError(Exception ex) =>
+        ex is System.Net.Http.HttpRequestException
+            ? "目前無法連線到雲端，請檢查網路後再試。"
+            : $"儲存失敗：{ex.Message}";
 
     private static EmailSchedule Copy(EmailSchedule source) => new()
     {
