@@ -108,7 +108,7 @@ public sealed class GoalStore(
                 return;
             }
 
-            updatedSkills = [.. goals[index].Skills, skill];
+            updatedSkills = [.. goals[index].Skills, skill.Normalized()];
         }
 
         await supabase.PatchAsync<GoalRow>(
@@ -146,7 +146,7 @@ public sealed class GoalStore(
                 return;
             }
 
-            skills[skillIndex] = updated with { Id = skillId };
+            skills[skillIndex] = updated.Normalized() with { Id = skillId };
             updatedSkills = skills.ToArray();
         }
 
@@ -249,7 +249,7 @@ public sealed class GoalStore(
         Description = row.Description,
         IsInProgress = row.IsInProgress,
         TargetDate = row.TargetDate,
-        Skills = row.Skills ?? []
+        Skills = (row.Skills ?? []).Select(skill => skill.Normalized()).ToArray()
     };
 
     private sealed class GoalRow

@@ -16,22 +16,23 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
                 new { goals },
                 cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                return GoalAdviceResult.Failed("AI 服務暫時無法使用。");
-            }
-
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             using var document = JsonDocument.Parse(json);
             var root = document.RootElement;
-
+            string? error = null;
             if (root.TryGetProperty("error", out var errorProperty))
             {
-                var error = errorProperty.GetString();
-                if (!string.IsNullOrWhiteSpace(error))
-                {
-                    return GoalAdviceResult.Failed(error);
-                }
+                error = errorProperty.GetString();
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return GoalAdviceResult.Failed(error ?? $"AI 服務回傳 {(int)response.StatusCode}，請稍後再試。");
+            }
+
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                return GoalAdviceResult.Failed(error);
             }
 
             var advice = new Dictionary<Guid, IReadOnlyList<string>>();
@@ -65,6 +66,10 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
         {
             throw;
         }
+        catch (HttpRequestException)
+        {
+            return GoalAdviceResult.Failed("無法連線到 AI 服務，請檢查網路連線。");
+        }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"AI 建議失敗：{ex.Message}");
@@ -84,8 +89,11 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
             var json = await response.Content.ReadAsStringAsync(cancellationToken);
             string? error = null;
             string model = "";
-            string reply = "";
             var ok = false;
+            var used = 0;
+            int? remaining = null;
+            var limit = 20;
+            var resetText = "";
 
             using (var document = JsonDocument.Parse(json))
             {
@@ -102,9 +110,21 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
                 {
                     model = modelProperty.GetString() ?? "";
                 }
-                if (root.TryGetProperty("reply", out var replyProperty))
+                if (root.TryGetProperty("used", out var usedProperty) && usedProperty.TryGetInt32(out var parsedUsed))
                 {
-                    reply = replyProperty.GetString() ?? "";
+                    used = parsedUsed;
+                }
+                if (root.TryGetProperty("remaining", out var remainingProperty) && remainingProperty.TryGetInt32(out var parsedRemaining))
+                {
+                    remaining = parsedRemaining;
+                }
+                if (root.TryGetProperty("limit", out var limitProperty) && limitProperty.TryGetInt32(out var parsedLimit))
+                {
+                    limit = parsedLimit;
+                }
+                if (root.TryGetProperty("resetText", out var resetProperty))
+                {
+                    resetText = resetProperty.GetString() ?? "";
                 }
             }
 
@@ -112,10 +132,14 @@ public sealed class GoalAdviceClient(SupabaseClient supabase) : IGoalAdviceClien
             {
                 return AiTestResult.Failed(
                     error ?? (!ok ? "AI 測試功能尚未部署到 Supabase。" : $"AI 服務回傳 {(int)response.StatusCode}。"),
-                    model);
+                    model,
+                    remaining,
+                    limit,
+                    used,
+                    resetText);
             }
 
-            return AiTestResult.Success(model, string.IsNullOrWhiteSpace(reply) ? "有回應。" : reply);
+            return AiTestResult.Success(model, "金鑰與模型可用", remaining, limit, used, resetText);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

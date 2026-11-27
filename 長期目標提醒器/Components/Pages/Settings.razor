@@ -1,7 +1,7 @@
 @page "/settings"
 @using Microsoft.Extensions.Options
 
-<PageTitle>通知設定 · 長期目標提醒器</PageTitle>
+<PageTitle>通知設定 · AI目標提醒</PageTitle>
 
 <div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-slate-900 dark:text-slate-100">
     <div class="mb-5">
@@ -103,6 +103,14 @@
                 <span class="text-xs @(aiTestOk ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600 dark:text-rose-300")" role="status">@aiTestMessage</span>
             }
         </div>
+        @if (aiRemaining is not null)
+        {
+            <p class="mt-2 text-xs @(aiRemaining.GetValueOrDefault() > 0 ? "text-indigo-700 dark:text-indigo-300" : "text-rose-600 dark:text-rose-300")" role="status">
+                預估剩餘 <span class="font-semibold tabular-nums">@aiRemaining</span> / @aiLimit 次 · @aiResetText 重置
+                <span class="text-slate-400 dark:text-slate-500">（本 App 記帳，已用 @aiUsed 次）</span>
+            </p>
+        }
+        <p class="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">測試使用 countTokens，不耗用生成額度；剩餘次數為本 App 記帳的預估值。</p>
 
         <div class="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/50 px-3 py-2 text-xs backdrop-blur">
             <span class="font-mono text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400">Next send</span>
@@ -184,6 +192,10 @@
     private bool testingAi;
     private string? aiTestMessage;
     private bool aiTestOk;
+    private int? aiRemaining;
+    private int aiLimit = 20;
+    private int aiUsed;
+    private string aiResetText = "16:00";
 
     private bool IsDirty =>
         model.Enabled != saved.Enabled ||
@@ -208,30 +220,46 @@
         }
     }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         model = Copy(ScheduleStore.Current);
         saved = Copy(model);
+        await RefreshAiAsync(showMessage: false);
     }
 
     private void SelectFrequency(EmailFrequency frequency) => model.Frequency = frequency;
 
     private async Task TestAiAsync()
     {
-        testingAi = true;
         aiTestMessage = null;
+        await RefreshAiAsync(showMessage: true);
+    }
+
+    private async Task RefreshAiAsync(bool showMessage)
+    {
+        testingAi = showMessage;
         try
         {
             var result = await AiClient.TestAsync();
             aiTestOk = result.Ok;
-            aiTestMessage = result.Ok
-                ? $"AI 正常（{result.Model}）：{result.Message}"
-                : $"AI 不可用：{result.Message}";
+            aiRemaining = result.Remaining;
+            aiLimit = result.Limit;
+            aiUsed = result.Used;
+            aiResetText = string.IsNullOrWhiteSpace(result.ResetText) ? "16:00" : result.ResetText;
+            if (showMessage)
+            {
+                aiTestMessage = result.Ok
+                    ? $"{result.Message}（{result.Model}）"
+                    : $"AI 不可用：{result.Message}";
+            }
         }
         catch (Exception ex)
         {
             aiTestOk = false;
-            aiTestMessage = $"AI 不可用：{ex.Message}";
+            if (showMessage)
+            {
+                aiTestMessage = $"AI 不可用：{ex.Message}";
+            }
         }
         finally
         {

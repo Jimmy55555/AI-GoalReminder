@@ -1,4 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { bumpUsage } from "../_shared/aiUsage.ts";
+import { geminiError, geminiFailureMessage } from "../_shared/geminiError.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -112,6 +114,7 @@ ${JSON.stringify(activeGoals)}`;
     ];
 
     let text = "";
+    let lastError = "AI 沒有回傳內容，請稍後再試。";
     for (const payload of payloads) {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
@@ -122,10 +125,15 @@ ${JSON.stringify(activeGoals)}`;
         },
       );
       if (!response.ok) {
-        if (response.status === 400) continue;
-        console.error("Gemini error", response.status, await response.text());
-        return json({ error: "AI 服務回傳錯誤。" }, 502);
+        const raw = await response.text();
+        if (response.status === 400) {
+          lastError = await geminiError(400, raw, model);
+          continue;
+        }
+        console.error("Gemini error", response.status, raw);
+        return json({ error: await geminiError(response.status, raw, model) }, 502);
       }
+      await bumpUsage();
 
       const data = await response.json();
       const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
@@ -137,7 +145,7 @@ ${JSON.stringify(activeGoals)}`;
       if (text) break;
     }
 
-    if (!text) return json({ error: "AI 沒有回傳內容。" }, 502);
+    if (!text) return json({ error: lastError }, 502);
 
     const cleaned = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
     const parsed = JSON.parse(cleaned);
@@ -157,7 +165,6 @@ ${JSON.stringify(activeGoals)}`;
     return json({ advice });
   } catch (error) {
     console.error(error);
-    const message = error instanceof Error ? error.message : "AI 服務暫時無法使用。";
-    return json({ error: message.slice(0, 120) }, 500);
+    return json({ error: geminiFailureMessage(error) }, 500);
   }
 });

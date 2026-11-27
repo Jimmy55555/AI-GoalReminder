@@ -44,16 +44,6 @@
     </nav>
 
     <div class="mt-auto">
-        <div class="rounded-xl border border-white/60 dark:border-white/10 bg-white/50 dark:bg-slate-800/50 p-3 backdrop-blur @(State.Collapsed && !State.MobileOpen ? "hidden" : "")">
-            <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                <span>追蹤中</span>
-                <span class="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-300">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true"></span>
-                    正常
-                </span>
-            </div>
-            <div class="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-100">@Goals.Count 個長期目標</div>
-        </div>
         <a href="settings"
            class="mt-2 flex min-h-11 min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 no-underline transition-colors hover:bg-white/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white sm:min-h-0 @(State.Collapsed ? "sm:justify-center sm:gap-0 sm:px-0 sm:py-2.5" : "")"
            title="設定"

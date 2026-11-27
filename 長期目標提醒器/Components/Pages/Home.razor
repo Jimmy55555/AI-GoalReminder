@@ -3,8 +3,9 @@
 @inject GoalStore GoalStore
 @inject GoalProgressStore GoalProgressStore
 @inject IGoalSkillGenerator SkillGenerator
+@inject NavigationManager Nav
 
-<PageTitle>長期目標提醒器</PageTitle>
+<PageTitle>AI目標提醒</PageTitle>
 
 <div class="flex min-h-[calc(100vh-3.5rem)] text-slate-900 dark:text-slate-100">
     <GoalSidebar Goals="goals"
@@ -23,8 +24,7 @@
                        IsInProgress="GoalProgressStore.IsInProgress(selectedGoalId)"
                        OnInProgressChanged="SetInProgress"
                        OnAddSkill="OpenSkillModalForNew"
-                       OnEditSkill="OpenSkillModalForEdit"
-                       OnDeleteSkill="ConfirmDeleteSkill"
+                       OnOpenSkill="OpenSkill"
                        OnEditDate="OpenDateModal"
                        OnClearDate="ConfirmClearGoalDate"
                        OnDeleteGoal="ConfirmDeleteGoal" />
@@ -70,27 +70,11 @@
 {
     <div class="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
         <div class="w-full max-w-md rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
-            <h2 class="text-base font-semibold text-slate-900 dark:text-white">@(editingSkillId is null ? "新增技能" : "編輯技能")</h2>
+            <h2 class="text-base font-semibold text-slate-900 dark:text-white">新增技能</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">狀態與進度會由技能頁的步驟自動計算。</p>
             <label class="mt-4 block text-xs font-medium text-slate-600 dark:text-slate-300">名稱</label>
             <input class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
                    @bind="skillName" />
-            <div class="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300">狀態</label>
-                    <select class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
-                            @bind="skillStatus">
-                        <option value="@SkillStatus.NotStarted">未開始</option>
-                        <option value="@SkillStatus.Learning">學習中</option>
-                        <option value="@SkillStatus.Mastered">已掌握</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 dark:text-slate-300">進度 (%)</label>
-                    <input type="number" min="0" max="100"
-                           class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
-                           @bind="skillProgress" />
-                </div>
-            </div>
             <label class="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">備註</label>
             <textarea class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
                       rows="2" @bind="skillNote"></textarea>
@@ -105,7 +89,7 @@
                 <button type="button"
                         class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
                         disabled="@isSubmitting"
-                        @onclick="SubmitSkillAsync">@(isSubmitting ? "儲存中…" : "儲存")</button>
+                        @onclick="SubmitSkillAsync">@(isSubmitting ? "儲存中…" : "新增")</button>
             </div>
         </div>
     </div>
@@ -177,10 +161,7 @@
     private string? formError;
 
     private bool showSkillModal;
-    private Guid? editingSkillId;
     private string skillName = "";
-    private SkillStatus skillStatus = SkillStatus.NotStarted;
-    private int skillProgress;
     private string skillNote = "";
 
     private bool showDateModal;
@@ -194,7 +175,12 @@
 
     protected override void OnInitialized()
     {
-        selectedGoalId = goals.FirstOrDefault()?.Id ?? Guid.Empty;
+        var relative = Nav.ToBaseRelativePath(Nav.Uri).Split('?', 2);
+        var goalParam = (relative.Length > 1 ? relative[1] : "").Split('&')
+            .FirstOrDefault(part => part.StartsWith("goal=", StringComparison.OrdinalIgnoreCase))?[5..];
+        selectedGoalId = Guid.TryParse(goalParam, out var parsed) && goals.Any(goal => goal.Id == parsed)
+            ? parsed
+            : goals.FirstOrDefault()?.Id ?? Guid.Empty;
         GoalStore.Changed += OnStoreChanged;
     }
 
@@ -215,6 +201,9 @@
     }
 
     private void SelectGoal(Goal goal) => selectedGoalId = goal.Id;
+
+    private void OpenSkill(Guid skillId) =>
+        Nav.NavigateTo($"{Nav.BaseUri}goals/{selectedGoalId}/skills/{skillId}");
 
     private async Task SetInProgress(bool value)
     {
@@ -299,22 +288,8 @@
 
     private void OpenSkillModalForNew()
     {
-        editingSkillId = null;
         skillName = "";
-        skillStatus = SkillStatus.NotStarted;
-        skillProgress = 0;
         skillNote = "";
-        formError = null;
-        showSkillModal = true;
-    }
-
-    private void OpenSkillModalForEdit(Skill skill)
-    {
-        editingSkillId = skill.Id;
-        skillName = skill.Name;
-        skillStatus = skill.Status;
-        skillProgress = skill.Progress;
-        skillNote = skill.Note;
         formError = null;
         showSkillModal = true;
     }
@@ -338,23 +313,13 @@
         var skill = new Skill
         {
             Name = name,
-            Status = skillStatus,
-            Progress = Math.Clamp(skillProgress, 0, 100),
             Note = skillNote.Trim()
         };
 
         isSubmitting = true;
         try
         {
-            if (editingSkillId is { } skillId)
-            {
-                await GoalStore.UpdateSkill(selectedGoalId, skillId, skill);
-            }
-            else
-            {
-                await GoalStore.AddSkill(selectedGoalId, skill);
-            }
-
+            await GoalStore.AddSkill(selectedGoalId, skill);
             CloseSkillModal();
         }
         catch (Exception ex)
@@ -413,19 +378,6 @@
         confirmMessage = "確定移除目標日期？";
         confirmLabel = "移除";
         confirmAction = async () => await GoalStore.SetTargetDate(selectedGoalId, null);
-    }
-
-    private void ConfirmDeleteSkill(Guid skillId)
-    {
-        var skill = SelectedGoal?.Skills.FirstOrDefault(skill => skill.Id == skillId);
-        if (skill is null)
-        {
-            return;
-        }
-
-        confirmMessage = $"確定刪除技能「{skill.Name}」？";
-        confirmLabel = "刪除";
-        confirmAction = async () => await GoalStore.DeleteSkill(selectedGoalId, skillId);
     }
 
     private void ConfirmDeleteGoal()

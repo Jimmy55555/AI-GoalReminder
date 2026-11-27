@@ -74,3 +74,34 @@ grant select, insert, update, delete on
     public.goal_reminder_email_schedule,
     public.goal_reminder_email_send_log
     to authenticated;
+
+-- AI 用量記帳（只有 service role 可讀寫；一般使用者不能碰）
+create table if not exists public.goal_reminder_ai_usage (
+    quota_day date primary key,
+    used integer not null default 0,
+    quota_limit integer not null default 20,
+    updated_at timestamptz not null default now()
+);
+
+alter table public.goal_reminder_ai_usage enable row level security;
+
+grant usage on schema public to service_role;
+grant select, insert, update on public.goal_reminder_ai_usage to service_role;
+
+create or replace function public.goal_reminder_ai_usage_bump(p_day date)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    insert into public.goal_reminder_ai_usage (quota_day, used, quota_limit)
+    values (p_day, 1, 20)
+    on conflict (quota_day) do update
+        set used = public.goal_reminder_ai_usage.used + 1,
+            updated_at = now();
+end;
+$$;
+
+revoke all on function public.goal_reminder_ai_usage_bump(date) from public, anon, authenticated;
+grant execute on function public.goal_reminder_ai_usage_bump(date) to service_role;

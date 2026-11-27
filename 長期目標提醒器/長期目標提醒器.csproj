@@ -42,6 +42,7 @@
     <Compile Include="..\GitHubPagesApp\Services\GoalProgressStore.cs" Link="Services\GoalProgressStore.cs" />
     <Compile Include="..\GitHubPagesApp\Services\EmailScheduleStore.cs" Link="Services\EmailScheduleStore.cs" />
     <Compile Include="..\GitHubPagesApp\Services\GoalSkillGenerator.cs" Link="Services\GoalSkillGenerator.cs" />
+    <Compile Include="..\GitHubPagesApp\Services\SkillStepGenerator.cs" Link="Services\SkillStepGenerator.cs" />
     <Compile Include="..\GitHubPagesApp\Services\GoalAdviceClient.cs" Link="Services\GoalAdviceClient.cs" />
     <RazorComponent Include="..\GitHubPagesApp\Components\Pages\Login.razor" Link="Components\Pages\Login.razor" />
   </ItemGroup>

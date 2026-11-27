@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { readUsage } from "../_shared/aiUsage.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -43,39 +44,42 @@ Deno.serve(async (req) => {
       return json({ error: "AI 金鑰尚未設定（GEMINI_API_KEY）。", model }, 500);
     }
 
+    // countTokens 不跑推論：免費、不計入 generateContent 的 RPM/TPM/RPD。
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:countTokens`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: "請只回覆 OK 兩個字。" }] }],
-          generationConfig: { maxOutputTokens: 64 },
+          contents: [{ role: "user", parts: [{ text: "OK" }] }],
         }),
       },
     );
 
     if (!response.ok) {
-      const detail = (await response.text()).trim().slice(0, 200);
-      return json(
-        { error: `模型 ${model} 回傳 ${response.status}${detail ? `：${detail}` : "。"}`, model },
-        502,
-      );
+      const raw = (await response.text()).trim();
+      console.error("Gemini countTokens error", response.status, raw.slice(0, 300));
+      let message = `模型 ${model} 回傳 ${response.status}。`;
+      if (response.status === 429) {
+        message = raw.includes("quota")
+          ? "AI 測試額度已用完，請稍後再試。"
+          : `AI 請求過於頻繁（${response.status}），請稍後再試。`;
+      } else if (raw) {
+        message += ` ${raw.slice(0, 120)}`;
+      }
+      return json({ error: message, model }, response.status === 429 ? 429 : 502);
     }
 
-    const data2 = await response.json();
-    const parts: any[] = data2?.candidates?.[0]?.content?.parts ?? [];
-    const reply = parts
-      .filter((part) => part?.text && !part?.thought)
-      .map((part) => String(part.text))
-      .join("")
-      .trim();
-
-    if (!reply) {
-      return json({ error: `模型 ${model} 沒有回傳內容。`, model }, 502);
-    }
-
-    return json({ ok: true, model, reply: reply.slice(0, 80) });
+    const usage = await readUsage();
+    const remaining = Math.max(0, usage.limit - usage.used);
+    return json({
+      ok: true,
+      model,
+      used: usage.used,
+      limit: usage.limit,
+      remaining,
+      resetText: "16:00",
+    });
   } catch (error) {
     console.error(error);
     const message = error instanceof Error ? error.message : "AI 測試失敗。";

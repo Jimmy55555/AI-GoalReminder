@@ -19,6 +19,25 @@ public sealed record SkillGenerationResult(
     public static SkillGenerationResult Failed(string error) => new([], error);
 }
 
+public interface ISkillStepGenerator
+{
+    Task<StepGenerationResult> GenerateAsync(
+        string goalTitle,
+        string goalDescription,
+        DateOnly? targetDate,
+        string skillName,
+        string skillNote,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record StepGenerationResult(
+    IReadOnlyList<string> Titles,
+    string? Error)
+{
+    public static StepGenerationResult Success(IReadOnlyList<string> titles) => new(titles, null);
+    public static StepGenerationResult Failed(string error) => new([], error);
+}
+
 public interface IGoalAdviceClient
 {
     Task<GoalAdviceResult> GetAdviceAsync(
@@ -28,10 +47,32 @@ public interface IGoalAdviceClient
     Task<AiTestResult> TestAsync(CancellationToken cancellationToken = default);
 }
 
-public sealed record AiTestResult(bool Ok, string Model, string Message)
+public sealed record AiTestResult(
+    bool Ok,
+    string Model,
+    string Message,
+    int? Remaining = null,
+    int Limit = 20,
+    int Used = 0,
+    string ResetText = "")
 {
-    public static AiTestResult Success(string model, string message) => new(true, model, message);
-    public static AiTestResult Failed(string message, string model = "") => new(false, model, message);
+    public static AiTestResult Success(
+        string model,
+        string message,
+        int? remaining = null,
+        int limit = 20,
+        int used = 0,
+        string resetText = "") =>
+        new(true, model, message, remaining, limit, used, resetText);
+
+    public static AiTestResult Failed(
+        string message,
+        string model = "",
+        int? remaining = null,
+        int limit = 20,
+        int used = 0,
+        string resetText = "") =>
+        new(false, model, message, remaining, limit, used, resetText);
 }
 
 public sealed record GoalAdviceResult(

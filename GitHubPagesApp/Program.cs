@@ -39,6 +39,7 @@ builder.Services.AddScoped<GoalProgressStore>();
 builder.Services.AddScoped<EmailScheduleStore>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<IGoalSkillGenerator, GoalSkillGenerator>();
+builder.Services.AddScoped<ISkillStepGenerator, SkillStepGenerator>();
 builder.Services.AddScoped<IGoalAdviceClient, GoalAdviceClient>();
 builder.Services.AddScoped<IThemeService, BrowserThemeService>();
 builder.Services.AddScoped<SidebarState>();

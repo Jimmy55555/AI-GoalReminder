@@ -1,0 +1,575 @@
+@page "/goals/{goalId:guid}/skills/{skillId:guid}"
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject GoalStore GoalStore
+@inject ISkillStepGenerator StepGenerator
+@inject NavigationManager Nav
+
+<PageTitle>技能 · AI目標提醒</PageTitle>
+
+<div class="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-slate-900 dark:text-slate-100">
+    <a href="@HomeUrl" class="inline-flex min-h-10 items-center gap-1 rounded-lg text-sm text-indigo-600 dark:text-indigo-300 transition-colors hover:text-indigo-800 dark:hover:text-indigo-200">&larr; 返回「@(goal?.Title ?? "目標")」</a>
+
+    @if (goal is null || skill is null)
+    {
+        <div class="mt-5 rounded-2xl border-2 border-amber-200/70 dark:border-amber-400/30 bg-amber-100/60 dark:bg-amber-400/10 p-5 text-sm text-amber-800 dark:text-amber-200 backdrop-blur">
+            找不到這個技能，可能已經被刪除。<a class="ml-1 underline" href="@HomeUrl">返回首頁</a>
+        </div>
+    }
+    else
+    {
+        @if (formError is not null)
+        {
+            <p class="mt-4 rounded-lg border border-rose-300/70 dark:border-rose-400/30 bg-rose-50 dark:bg-rose-400/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200" role="alert">@formError</p>
+        }
+        else if (notice is not null)
+        {
+            <p class="mt-4 rounded-lg border border-emerald-300/70 dark:border-emerald-400/30 bg-emerald-50 dark:bg-emerald-400/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-200" role="status">@notice</p>
+        }
+
+        <section class="relative mt-5 overflow-hidden rounded-3xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-5 shadow-[0_8px_32px_rgba(31,38,135,0.10)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.30)] backdrop-blur-xl sm:p-6">
+            <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-indigo-300/40 dark:bg-indigo-400/20 blur-3xl" aria-hidden="true"></div>
+
+            <div class="relative flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <span class="font-mono text-[10px] uppercase tracking-widest text-indigo-600 dark:text-indigo-300">Skill</span>
+                    <h1 class="mt-1 break-words text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">@skill.Name</h1>
+                </div>
+                <span class="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] @SkillBadgeClass(skill.Status)">@SkillStatusText(skill.Status)</span>
+            </div>
+
+            @if (editing)
+            {
+                <label class="mt-5 block text-xs font-medium text-slate-600 dark:text-slate-300">技能名稱</label>
+                <input class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                       @bind="draftName" />
+
+                <label class="mt-3 block text-xs font-medium text-slate-600 dark:text-slate-300">備註</label>
+                <textarea class="mt-1 w-full rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-3 py-2 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60"
+                          rows="2" @bind="draftNote"></textarea>
+            }
+            else
+            {
+                <div class="mt-4 flex items-center gap-2.5">
+                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-700/70" role="progressbar" aria-valuenow="@skill.Progress" aria-valuemin="0" aria-valuemax="100">
+                        <div class="h-full rounded-full @SkillBarClass(skill.Status)" style="width: @skill.Progress%"></div>
+                    </div>
+                    <span class="w-10 text-right font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">@skill.Progress%</span>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(skill.Note))
+                {
+                    <p class="mt-3 text-xs leading-relaxed text-slate-600 dark:text-slate-300">@skill.Note</p>
+                }
+            }
+        </section>
+
+        <section class="mt-5 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md sm:p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">最小實際步驟</h2>
+                    <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        @if (editing)
+                        {
+                            <span>編輯模式：可新增、修改、刪除、排序；按儲存才寫入。</span>
+                        }
+                        else
+                        {
+                            <span>照順序完成，前面的做完才能做後面的。</span>
+                        }
+                    </p>
+                </div>
+                @if (!editing)
+                {
+                    <button type="button"
+                            class="inline-flex min-h-10 items-center rounded-lg border border-indigo-200/70 dark:border-indigo-400/30 bg-indigo-50/70 dark:bg-indigo-400/10 px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-200 backdrop-blur transition-colors hover:bg-indigo-100/80 dark:hover:bg-indigo-400/20 disabled:opacity-60"
+                            disabled="@busy"
+                            @onclick="() => showGenerateConfirm = true">
+                        @(busy ? "處理中…" : "✨ AI 生成步驟")
+                    </button>
+                }
+            </div>
+
+            @if (editing)
+            {
+                <div class="mt-4 space-y-2">
+                    @for (var i = 0; i < draftSteps.Count; i++)
+                    {
+                        var step = draftSteps[i];
+                        <div class="flex items-center gap-1.5 rounded-xl border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-700/40 p-2">
+                            <span class="w-6 shrink-0 text-center font-mono text-xs text-slate-400">@(i + 1)</span>
+                            <input value="@step.Title"
+                                   @oninput="e => SetStepTitle(step.Id, e.Value)"
+                                   placeholder="這一步要做什麼？"
+                                   class="min-w-0 flex-1 rounded-lg border border-white/70 dark:border-white/10 bg-white/70 dark:bg-slate-800/70 px-2 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-300 dark:focus:ring-indigo-500/60" />
+                            <button type="button" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/80 dark:hover:bg-white/10 disabled:opacity-30" disabled="@(i == 0)" aria-label="上移步驟" title="上移" @onclick="() => MoveStep(step.Id, -1)">↑</button>
+                            <button type="button" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/80 dark:hover:bg-white/10 disabled:opacity-30" disabled="@(i == draftSteps.Count - 1)" aria-label="下移步驟" title="下移" @onclick="() => MoveStep(step.Id, 1)">↓</button>
+                            <button type="button" class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm text-slate-500 dark:text-slate-400 transition-colors hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-300" aria-label="刪除步驟" title="刪除" @onclick="() => RemoveStep(step.Id)">✕</button>
+                        </div>
+                    }
+                </div>
+
+                <button type="button"
+                        class="mt-3 inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="AddStep">
+                    ＋ 新增步驟
+                </button>
+
+                @if (draftSteps.Count == 0)
+                {
+                    <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">還沒有步驟，按「新增步驟」加入第一個。</p>
+                }
+            }
+            else
+            {
+                <div class="mt-4 space-y-2">
+                    @for (var i = 0; i < skill.Steps.Count; i++)
+                    {
+                        var step = skill.Steps[i];
+                        var checkable = CanCheckStep(i);
+                        <div class="flex min-h-11 items-center gap-3 rounded-xl border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-700/40 px-3 py-1.5 @(step.Done ? "opacity-70" : "")">
+                            <button type="button"
+                                    role="checkbox" aria-checked="@(step.Done ? "true" : "false")"
+                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg border text-sm transition-colors @(step.Done ? "border-emerald-300 dark:border-emerald-400/40 bg-emerald-100/80 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-200" : "border-white/80 dark:border-white/15 bg-white/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-300") disabled:cursor-not-allowed disabled:opacity-50"
+                                    disabled="@(!checkable || busy)"
+                                    aria-label="@(step.Done ? "取消完成" : "標示完成")"
+                                    @onclick="() => ToggleStepAsync(step.Id)">
+                                @if (step.Done)
+                                {
+                                    <span>✓</span>
+                                }
+                                else if (!checkable)
+                                {
+                                    <span aria-hidden="true">🔒</span>
+                                }
+                                else
+                                {
+                                    <span class="font-mono text-xs">@(i + 1)</span>
+                                }
+                            </button>
+                            <span class="min-w-0 flex-1 text-sm leading-relaxed text-slate-700 dark:text-slate-200 @(step.Done ? "line-through text-slate-400 dark:text-slate-500" : "")">@step.Title</span>
+                            @if (!checkable && !step.Done)
+                            {
+                                <span class="hidden text-[10px] text-slate-400 dark:text-slate-500 sm:inline">先完成前面的步驟</span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (skill.Steps.Count == 0)
+                {
+                    <p class="mt-4 rounded-xl border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/50 px-3 py-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                        還沒有步驟。按「AI 生成步驟」或進入編輯模式手動新增。
+                    </p>
+                }
+            }
+        </section>
+
+        @if (editing)
+        {
+            <div class="sticky bottom-3 z-10 mt-5 flex items-center justify-end gap-2 rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 p-3 shadow-xl backdrop-blur-xl">
+                <span class="mr-auto pl-1 text-xs @(IsDirty ? "text-rose-600 dark:text-rose-300" : "text-slate-500 dark:text-slate-400")">@(IsDirty ? "尚未儲存變更" : "沒有未儲存的變更")</span>
+                <button type="button"
+                        class="inline-flex min-h-11 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 px-4 py-2 text-sm text-slate-600 dark:text-slate-200 transition-colors hover:bg-white/90 dark:hover:bg-slate-700/70"
+                        disabled="@busy"
+                        @onclick="CancelEdit">
+                    取消
+                </button>
+                <button type="button"
+                        class="inline-flex min-h-11 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 dark:hover:bg-indigo-400 disabled:opacity-60"
+                        disabled="@busy"
+                        @onclick="SaveAsync">
+                    @(busy ? "儲存中…" : "儲存")
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="mt-5 flex flex-wrap items-center gap-2">
+                <button type="button"
+                        class="inline-flex min-h-11 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-xs text-slate-600 dark:text-slate-200 backdrop-blur transition-colors hover:bg-white/80 dark:hover:bg-slate-700/70"
+                        @onclick="EnterEditMode">
+                    ✎ 編輯模式
+                </button>
+                <button type="button"
+                        class="inline-flex min-h-11 items-center rounded-lg border border-rose-200/60 dark:border-rose-400/30 bg-rose-50/50 dark:bg-rose-500/10 px-3 py-2 text-xs text-rose-600 dark:text-rose-300 backdrop-blur transition-colors hover:bg-rose-100/80 dark:hover:bg-rose-500/20"
+                        disabled="@busy"
+                        @onclick="() => showDeleteConfirm = true">
+                    刪除技能
+                </button>
+            </div>
+        }
+    }
+</div>
+
+@if (showLeaveConfirm)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">有尚未儲存的變更，確定要離開嗎？</p>
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200" @onclick="CancelLeave">留在這頁</button>
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg bg-rose-600 dark:bg-rose-500 px-4 py-2 text-sm font-medium text-white" @onclick="ConfirmLeave">確定離開</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showGenerateConfirm)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">AI 生成會取代目前所有步驟，進度與狀態也會重置。確定要繼續嗎？</p>
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200" @onclick="() => showGenerateConfirm = false">取消</button>
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg bg-indigo-600 dark:bg-indigo-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" disabled="@busy" @onclick="ConfirmGenerateAsync">@(busy ? "處理中…" : "確定生成")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteConfirm)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 dark:bg-black/60 p-4 backdrop-blur-sm">
+        <div class="w-full max-w-sm rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/85 dark:bg-slate-900/85 p-5 shadow-2xl backdrop-blur-xl">
+            <p class="text-sm leading-relaxed text-slate-700 dark:text-slate-200">確定刪除技能「@skill?.Name」？步驟也會一併刪除。</p>
+            @if (formError is not null)
+            {
+                <p class="mt-2 text-xs text-rose-600 dark:text-rose-300" role="alert">@formError</p>
+            }
+            <div class="mt-4 flex items-center justify-end gap-2">
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg border border-white/70 dark:border-white/10 bg-white/50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-600 dark:text-slate-200" @onclick="() => showDeleteConfirm = false">取消</button>
+                <button type="button" class="inline-flex min-h-10 items-center rounded-lg bg-rose-600 dark:bg-rose-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-60" disabled="@busy" @onclick="DeleteSkillAsync">@(busy ? "處理中…" : "刪除")</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid GoalId { get; set; }
+    [Parameter] public Guid SkillId { get; set; }
+
+    private Goal? goal;
+    private Skill? skill;
+    private bool editing;
+    private bool busy;
+    private string? formError;
+    private string? notice;
+
+    private string draftName = "";
+    private string draftNote = "";
+    private List<SkillStep> draftSteps = [];
+
+    private bool showLeaveConfirm;
+    private bool showGenerateConfirm;
+    private bool showDeleteConfirm;
+    private string? pendingNavigation;
+    private bool allowNavigation;
+    private IDisposable? locationHandler;
+
+    private string HomeUrl => $"{Nav.BaseUri}?goal={GoalId}";
+
+    private bool IsDirty => skill is not null && (
+        !string.Equals(draftName, skill.Name, StringComparison.Ordinal) ||
+        !string.Equals(draftNote, skill.Note, StringComparison.Ordinal) ||
+        !draftSteps.Select(step => (step.Id, step.Title)).SequenceEqual(skill.Steps.Select(step => (step.Id, step.Title))));
+
+    protected override void OnInitialized()
+    {
+        locationHandler = Nav.RegisterLocationChangingHandler(OnLocationChanging);
+    }
+
+    protected override void OnParametersSet()
+    {
+        LoadCurrent();
+    }
+
+    public void Dispose()
+    {
+        locationHandler?.Dispose();
+    }
+
+    private ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        if (allowNavigation || !editing || !IsDirty)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        pendingNavigation = context.TargetLocation;
+        context.PreventNavigation();
+        showLeaveConfirm = true;
+        _ = InvokeAsync(StateHasChanged);
+        return ValueTask.CompletedTask;
+    }
+
+    private void CancelLeave()
+    {
+        pendingNavigation = null;
+        showLeaveConfirm = false;
+    }
+
+    private void ConfirmLeave()
+    {
+        var target = pendingNavigation;
+        pendingNavigation = null;
+        showLeaveConfirm = false;
+        allowNavigation = true;
+        if (!string.IsNullOrEmpty(target))
+        {
+            Nav.NavigateTo(target);
+        }
+    }
+
+    private void LoadCurrent()
+    {
+        goal = GoalStore.Get(GoalId);
+        skill = goal?.Skills.FirstOrDefault(candidate => candidate.Id == SkillId);
+        if (!editing)
+        {
+            ResetDraft();
+        }
+    }
+
+    private void ResetDraft()
+    {
+        draftName = skill?.Name ?? "";
+        draftNote = skill?.Note ?? "";
+        draftSteps = (skill?.Steps ?? []).Select(step => step with { }).ToList();
+    }
+
+    private bool CanCheckStep(int index)
+    {
+        if (skill is null || index < 0 || index >= skill.Steps.Count)
+        {
+            return false;
+        }
+
+        return skill.Steps[index].Done || skill.Steps.Take(index).All(step => step.Done);
+    }
+
+    private async Task ToggleStepAsync(Guid stepId)
+    {
+        if (goal is null || skill is null || busy)
+        {
+            return;
+        }
+
+        var steps = skill.Steps.ToArray();
+        var index = Array.FindIndex(steps, step => step.Id == stepId);
+        if (index < 0 || !CanCheckStep(index))
+        {
+            return;
+        }
+
+        formError = null;
+        notice = null;
+        var nextDone = !steps[index].Done;
+        var updatedSteps = steps.Select((step, i) => i switch
+        {
+            _ when i < index => step,
+            _ when i == index => step with { Done = nextDone },
+            _ => step with { Done = false }
+        }).ToArray();
+        var updated = (skill with { Steps = updatedSteps }).Normalized();
+
+        busy = true;
+        try
+        {
+            await GoalStore.UpdateSkill(GoalId, SkillId, updated);
+            LoadCurrent();
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task ConfirmGenerateAsync()
+    {
+        showGenerateConfirm = false;
+        await GenerateStepsAsync();
+    }
+
+    private async Task GenerateStepsAsync()
+    {
+        if (goal is null || skill is null || busy)
+        {
+            return;
+        }
+
+        formError = null;
+        notice = null;
+        busy = true;
+        try
+        {
+            var result = await StepGenerator.GenerateAsync(
+                goal.Title, goal.Description, goal.TargetDate, skill.Name, skill.Note);
+            if (result.Error is not null)
+            {
+                formError = result.Error;
+                return;
+            }
+
+            var steps = result.Titles.Select(title => new SkillStep { Title = title }).ToArray();
+            var updated = (skill with { Steps = steps }).Normalized();
+            await GoalStore.UpdateSkill(GoalId, SkillId, updated);
+            LoadCurrent();
+            notice = $"已生成 {steps.Length} 個步驟，進度與狀態已同步重置。";
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void EnterEditMode()
+    {
+        ResetDraft();
+        editing = true;
+        formError = null;
+        notice = null;
+    }
+
+    private void CancelEdit()
+    {
+        editing = false;
+        ResetDraft();
+        formError = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (skill is null || busy)
+        {
+            return;
+        }
+
+        formError = null;
+        var name = draftName.Trim();
+        if (name.Length == 0)
+        {
+            formError = "請輸入技能名稱。";
+            return;
+        }
+
+        var steps = draftSteps
+            .Select(step => step with { Title = step.Title.Trim() })
+            .Where(step => step.Title.Length > 0)
+            .ToArray();
+        var updated = (skill with
+        {
+            Name = name,
+            Note = draftNote.Trim(),
+            Steps = steps
+        }).Normalized();
+
+        busy = true;
+        try
+        {
+            await GoalStore.UpdateSkill(GoalId, SkillId, updated);
+            editing = false;
+            LoadCurrent();
+            notice = "已儲存。";
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private void AddStep() => draftSteps.Add(new SkillStep { Title = "" });
+
+    private void RemoveStep(Guid stepId)
+    {
+        var index = draftSteps.FindIndex(step => step.Id == stepId);
+        if (index >= 0)
+        {
+            draftSteps.RemoveAt(index);
+        }
+    }
+
+    private void MoveStep(Guid stepId, int delta)
+    {
+        var index = draftSteps.FindIndex(step => step.Id == stepId);
+        var target = index + delta;
+        if (index < 0 || target < 0 || target >= draftSteps.Count)
+        {
+            return;
+        }
+
+        (draftSteps[index], draftSteps[target]) = (draftSteps[target], draftSteps[index]);
+    }
+
+    private void SetStepTitle(Guid stepId, object? value)
+    {
+        var index = draftSteps.FindIndex(step => step.Id == stepId);
+        if (index >= 0)
+        {
+            draftSteps[index] = draftSteps[index] with { Title = value?.ToString() ?? "" };
+        }
+    }
+
+    private async Task DeleteSkillAsync()
+    {
+        if (busy)
+        {
+            return;
+        }
+
+        formError = null;
+        busy = true;
+        try
+        {
+            await GoalStore.DeleteSkill(GoalId, SkillId);
+            showDeleteConfirm = false;
+            allowNavigation = true;
+            Nav.NavigateTo(HomeUrl);
+        }
+        catch (Exception ex)
+        {
+            formError = SaveError(ex);
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private static string SkillStatusText(SkillStatus status) => status switch
+    {
+        SkillStatus.Mastered => "已掌握",
+        SkillStatus.Learning => "學習中",
+        _ => "未開始"
+    };
+
+    private static string SkillBadgeClass(SkillStatus status) => status switch
+    {
+        SkillStatus.Mastered => "bg-emerald-100/70 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-inset ring-emerald-500/20 dark:ring-emerald-400/30",
+        SkillStatus.Learning => "bg-amber-100/70 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-1 ring-inset ring-amber-500/20 dark:ring-amber-400/30",
+        _ => "bg-slate-200/70 dark:bg-slate-700/60 text-slate-500 dark:text-slate-300 ring-1 ring-inset ring-slate-400/20 dark:ring-slate-500/30"
+    };
+
+    private static string SkillBarClass(SkillStatus status) => status switch
+    {
+        SkillStatus.Mastered => "bg-emerald-500",
+        SkillStatus.Learning => "bg-amber-500",
+        _ => "bg-slate-400"
+    };
+
+    private static string SaveError(Exception ex) =>
+        ex is System.Net.Http.HttpRequestException
+            ? "目前無法連線到雲端，請檢查網路後再試。"
+            : $"儲存失敗：{ex.Message}";
+}

@@ -110,28 +110,15 @@
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             @foreach (var skill in Goal.Skills)
             {
-                <article class="group rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-4 shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white/80 dark:hover:border-white/20 hover:bg-white/65 dark:hover:bg-slate-700/60 hover:shadow-[0_12px_40px_rgba(79,70,229,0.15)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
+                <button type="button"
+                        class="group w-full rounded-2xl border-2 border-white/60 dark:border-white/10 bg-white/45 dark:bg-slate-800/45 p-4 text-left shadow-[0_8px_32px_rgba(31,38,135,0.08)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-white/80 dark:hover:border-white/20 hover:bg-white/65 dark:hover:bg-slate-700/60 hover:shadow-[0_12px_40px_rgba(79,70,229,0.15)] dark:hover:shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                        aria-label="開啟技能 @skill.Name"
+                        @onclick="() => OnOpenSkill.InvokeAsync(skill.Id)">
                     <div class="mb-3 flex items-start justify-between gap-2">
                         <h3 class="min-w-0 truncate text-sm font-semibold text-slate-900 dark:text-white">@skill.Name</h3>
-                        <div class="flex shrink-0 items-center gap-1">
-                            <span class="rounded-full px-2 py-0.5 font-mono text-[10px] @SkillBadgeClass(skill.Status)">
-                                @SkillStatusText(skill.Status)
-                            </span>
-                            <button type="button"
-                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/70 dark:hover:bg-white/10 hover:text-indigo-600 dark:hover:text-indigo-300 sm:h-6 sm:w-6"
-                                    title="編輯技能"
-                                    aria-label="編輯 @skill.Name"
-                                    @onclick="() => OnEditSkill.InvokeAsync(skill)">
-                                ✎
-                            </button>
-                            <button type="button"
-                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs text-slate-500 dark:text-slate-400 transition-colors hover:bg-white/70 dark:hover:bg-white/10 hover:text-rose-600 dark:hover:text-rose-300 sm:h-6 sm:w-6"
-                                    title="刪除技能"
-                                    aria-label="刪除 @skill.Name"
-                                    @onclick="() => OnDeleteSkill.InvokeAsync(skill.Id)">
-                                ✕
-                            </button>
-                        </div>
+                        <span class="shrink-0 rounded-full px-2 py-0.5 font-mono text-[10px] @SkillBadgeClass(skill.Status)">
+                            @SkillStatusText(skill.Status)
+                        </span>
                     </div>
                     <div class="flex items-center gap-2.5">
                         <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200/70 dark:bg-slate-700/70"
@@ -141,8 +128,12 @@
                         </div>
                         <span class="w-9 text-right font-mono text-[11px] tabular-nums text-slate-500 dark:text-slate-400">@skill.Progress%</span>
                     </div>
+                    @if (skill.Steps.Count > 0)
+                    {
+                        <p class="mt-2 font-mono text-[10px] text-indigo-600 dark:text-indigo-300">@skill.Steps.Count(step => step.Done)/@skill.Steps.Count 步驟</p>
+                    }
                     <p class="mt-2.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">@skill.Note</p>
-                </article>
+                </button>
             }
         </div>
 
@@ -189,8 +180,7 @@
     [Parameter] public bool IsInProgress { get; set; } = true;
     [Parameter] public EventCallback<bool> OnInProgressChanged { get; set; }
     [Parameter] public EventCallback OnAddSkill { get; set; }
-    [Parameter] public EventCallback<Skill> OnEditSkill { get; set; }
-    [Parameter] public EventCallback<Guid> OnDeleteSkill { get; set; }
+    [Parameter] public EventCallback<Guid> OnOpenSkill { get; set; }
     [Parameter] public EventCallback OnEditDate { get; set; }
     [Parameter] public EventCallback OnClearDate { get; set; }
     [Parameter] public EventCallback OnDeleteGoal { get; set; }

@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6";
+import { bumpUsage } from "../_shared/aiUsage.ts";
+import { geminiError, geminiFailureMessage } from "../_shared/geminiError.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -225,9 +227,11 @@ ${JSON.stringify(activeGoals)}`;
       },
     );
     if (!response.ok) {
+      const raw = await response.text();
       if (response.status === 400) continue;
-      throw new Error(`AI 服務回傳 ${response.status}`);
+      throw new Error(await geminiError(response.status, raw, model));
     }
+    await bumpUsage();
     const data = await response.json();
     const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
     text = parts.filter((part) => part?.text && !part?.thought).map((part) => String(part.text)).join("").trim();
@@ -345,7 +349,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, sent: sentCount, time: now.dateText });
   } catch (error) {
     console.error(error);
-    const message = error instanceof Error ? error.message : "寄信失敗。";
-    return json({ error: message.slice(0, 160) }, 500);
+    return json({ error: geminiFailureMessage(error) }, 500);
   }
 });

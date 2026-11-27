@@ -20,6 +20,7 @@
     <RazorComponent Include="..\長期目標提醒器\Components\GoalSidebar.razor" Link="Components\GoalSidebar.razor" />
     <RazorComponent Include="..\長期目標提醒器\Components\Layout\MainLayout.razor" Link="Components\Layout\MainLayout.razor" />
     <RazorComponent Include="..\長期目標提醒器\Components\Pages\Home.razor" Link="Components\Pages\Home.razor" />
+    <RazorComponent Include="..\長期目標提醒器\Components\Pages\SkillDetail.razor" Link="Components\Pages\SkillDetail.razor" />
     <RazorComponent Include="..\長期目標提醒器\Components\Pages\Settings.razor" Link="Components\Pages\Settings.razor" />
     <RazorComponent Include="..\長期目標提醒器\Components\Pages\NotFound.razor" Link="Components\Pages\NotFound.razor" />
     <Compile Include="..\長期目標提醒器\Services\SidebarState.cs" Link="Services\SidebarState.cs" />
